@@ -33,6 +33,15 @@ export interface ConceptGraphData {
   edges: ConceptEdge[];
 }
 
+// Concept-to-chunk mapping (for grounded question generation)
+
+export interface ConceptChunk {
+  id: string;
+  concept_id: string;
+  chunk_id: string;
+  created_at: string;
+}
+
 // Auto-generated concept graph
 
 export interface GeneratedConcept {
@@ -40,6 +49,7 @@ export interface GeneratedConcept {
   description: string;
   status: "new" | "existing";
   existing_id?: string;
+  source_chunk_ids?: string[];
 }
 
 export interface GeneratedEdge {

@@ -20,10 +20,10 @@ export async function POST() {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  // Fetch all chunks
+  // Fetch all chunks (include id for mapping)
   const { data: chunks, error: chunksError } = await supabase
     .from("course_material_chunks")
-    .select("material_id, chunk_text, chunk_index")
+    .select("id, material_id, chunk_text, chunk_index")
     .order("material_id")
     .order("chunk_index");
 
@@ -45,7 +45,10 @@ export async function POST() {
     .order("name");
 
   try {
-    const result = await generateConceptGraph(chunks, existingConcepts ?? []);
+    const { graph: result, chunkIdByIndex } = await generateConceptGraph(
+      chunks,
+      existingConcepts ?? []
+    );
 
     // Build a lookup of existing concepts (case-insensitive)
     const existingMap = new Map(
@@ -62,11 +65,18 @@ export async function POST() {
       seenNames.add(key);
 
       const existing = existingMap.get(key);
+
+      // Map LLM chunk indices back to DB chunk IDs
+      const sourceChunkIds = (concept.source_chunks ?? [])
+        .map((idx) => chunkIdByIndex.get(idx))
+        .filter((id): id is string => id !== undefined);
+
       concepts.push({
         name: existing ? existing.name : concept.name,
         description: existing ? existing.description : concept.description,
         status: existing ? "existing" : "new",
         existing_id: existing?.id,
+        source_chunk_ids: sourceChunkIds,
       });
     }
 

@@ -46,6 +46,33 @@ async function embedText(text: string): Promise<number[]> {
   return embeddings[0];
 }
 
+/**
+ * Retrieve chunk text for a concept via direct concept_chunks mapping.
+ * Returns null if no mappings exist (caller should fall back to semantic RAG).
+ */
+async function getLinkedChunks(conceptId: string): Promise<string | null> {
+  const supabase = await createClient();
+
+  const { data: links, error } = await supabase
+    .from("concept_chunks")
+    .select("chunk_id")
+    .eq("concept_id", conceptId);
+
+  if (error || !links || links.length === 0) return null;
+
+  const chunkIds = links.map((l) => l.chunk_id);
+  const { data: chunks } = await supabase
+    .from("course_material_chunks")
+    .select("chunk_text, chunk_index")
+    .in("id", chunkIds)
+    .order("chunk_index")
+    .limit(6);
+
+  if (!chunks || chunks.length === 0) return null;
+
+  return chunks.map((c) => c.chunk_text).join("\n\n---\n\n");
+}
+
 export async function generateQuestion(
   conceptId: string,
   questionType: QuestionType,
@@ -70,16 +97,23 @@ export async function generateQuestion(
 
   const typedConcept = concept as Concept;
 
-  // RAG: embed concept text and retrieve relevant chunks
+  // Try direct concept-chunk mappings first, fall back to semantic RAG
   let ragContext = "";
-  try {
-    const queryText = `${typedConcept.name}: ${typedConcept.description}`;
-    const embedding = await embedText(queryText);
-    const chunks = await retrieveChunks(embedding, 5, 0.5);
-    ragContext = buildContext(chunks);
-  } catch (err) {
-    console.error("RAG retrieval failed:", err);
-    // Continue without RAG context
+  let usedDirectMapping = false;
+
+  const linkedContext = await getLinkedChunks(conceptId);
+  if (linkedContext) {
+    ragContext = linkedContext;
+    usedDirectMapping = true;
+  } else {
+    try {
+      const queryText = `${typedConcept.name}: ${typedConcept.description}`;
+      const embedding = await embedText(queryText);
+      const chunks = await retrieveChunks(embedding, 3, 0.7);
+      ragContext = buildContext(chunks);
+    } catch (err) {
+      console.error("RAG retrieval failed:", err);
+    }
   }
 
   // Fetch recent questions for this concept to avoid repetition
@@ -102,8 +136,11 @@ export async function generateQuestion(
   const typeLabel =
     questionType === "multiple_choice" ? "multiple choice" : "free response";
 
+  // Use a stronger constraint when we have direct mappings
   const contextSection = ragContext
-    ? `\nUse the following course material as reference:\n${ragContext}\n`
+    ? usedDirectMapping
+      ? `\nThe following is the course material covering this concept. Only ask about topics that are substantively covered in this material — if something is only briefly mentioned or referenced in passing, do not make it the focus of a question. You may use your own examples and scenarios to test the concepts, rather than reusing the specific examples from the material.\n\n${ragContext}\n`
+      : `\nUse the following course material as reference:\n${ragContext}\n`
     : "";
 
   const prompt = `You are an ML1 (Machine Learning 1) exam question generator. Generate a ${difficulty} ${typeLabel} question about "${typedConcept.name}".
@@ -111,6 +148,8 @@ ${contextSection}
 Concept description: ${typedConcept.description}
 ${avoidSection}
 ${questionType === "multiple_choice" ? "Provide exactly 4 options labeled A, B, C, D. The correct_answer should be the letter only." : "Set options to null. The correct_answer should be the full answer text."}`;
+
+  console.log("[generate-question] Prompt:\n", prompt);
 
   const { output } = await generateText({
     model,
@@ -121,6 +160,8 @@ ${questionType === "multiple_choice" ? "Provide exactly 4 options labeled A, B, 
   if (!output) {
     throw new Error("Failed to generate question: no output from model");
   }
+
+  console.log("[generate-question] Output:\n", JSON.stringify(output, null, 2));
 
   // Verify correct answer for MC questions
   if (questionType === "multiple_choice" && output.options) {
