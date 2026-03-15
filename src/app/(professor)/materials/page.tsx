@@ -1,11 +1,32 @@
-export default function MaterialsPage() {
+import { createClient } from "@/lib/supabase/server";
+import { MaterialManager } from "./MaterialManager";
+import type { CourseMaterial, Concept } from "@/lib/types/database";
+
+export default async function MaterialsPage() {
+  const supabase = await createClient();
+
+  const [{ data: materials }, { data: concepts }] = await Promise.all([
+    supabase
+      .from("course_materials")
+      .select("*")
+      .order("created_at", { ascending: false }),
+    supabase.from("concepts").select("*").order("name"),
+  ]);
+
   return (
-    <div>
-      <h1 className="text-2xl font-bold">Course Materials</h1>
-      <p className="mt-2 text-muted-foreground">
-        Upload and manage course notes, slides, and assignments for question
-        generation.
-      </p>
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold">Course Materials</h1>
+        <p className="mt-1 text-muted-foreground">
+          Upload course notes, slides, and assignments. Files are chunked and
+          embedded for RAG-powered question generation.
+        </p>
+      </div>
+
+      <MaterialManager
+        initialMaterials={(materials ?? []) as CourseMaterial[]}
+        concepts={(concepts ?? []) as Concept[]}
+      />
     </div>
   );
 }

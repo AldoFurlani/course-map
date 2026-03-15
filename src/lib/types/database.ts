@@ -32,3 +32,34 @@ export interface ConceptGraphData {
   concepts: Concept[];
   edges: ConceptEdge[];
 }
+
+// Phase 3: Course Materials
+
+export interface CourseMaterial {
+  id: string;
+  concept_id: string | null;
+  title: string;
+  file_name: string;
+  file_type: "pdf" | "text" | "markdown";
+  file_path: string;
+  uploaded_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CourseMaterialChunk {
+  id: string;
+  material_id: string;
+  chunk_text: string;
+  chunk_index: number;
+  embedding: number[] | null;
+  created_at: string;
+}
+
+export interface MatchedChunk {
+  id: string;
+  material_id: string;
+  chunk_text: string;
+  chunk_index: number;
+  similarity: number;
+}
