@@ -16,7 +16,7 @@ export default async function QuestionsPage() {
     <div>
       <h1 className="text-2xl font-bold">Question Bank</h1>
       <p className="mt-2 mb-6 text-muted-foreground">
-        Review and manage AI-generated questions.
+        Curate questions for students to practice with. Star questions to make them visible in the student question bank.
       </p>
       <QuestionBank
         initialQuestions={questions ?? []}

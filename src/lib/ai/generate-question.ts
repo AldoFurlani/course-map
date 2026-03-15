@@ -2,6 +2,7 @@ import { generateText, Output } from "ai";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { retrieveChunks, buildContext } from "@/lib/rag/retriever";
+import { checkRateLimit } from "@/lib/rate-limit";
 import { model } from "./client";
 import type {
   Question,
@@ -9,8 +10,6 @@ import type {
   Difficulty,
   Concept,
 } from "@/lib/types/database";
-
-const RATE_LIMIT_PER_HOUR = 10;
 
 const mcOptionSchema = z.object({
   label: z.string(),
@@ -22,6 +21,11 @@ const questionSchema = z.object({
   options: z.array(mcOptionSchema).nullable(),
   correct_answer: z.string(),
   explanation: z.string(),
+});
+
+const verificationSchema = z.object({
+  correct_answer: z.string(),
+  reasoning: z.string(),
 });
 
 async function embedText(text: string): Promise<number[]> {
@@ -51,18 +55,7 @@ export async function generateQuestion(
   const supabase = await createClient();
 
   // Rate limit check
-  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-  const { count } = await supabase
-    .from("questions")
-    .select("*", { count: "exact", head: true })
-    .eq("generated_by", userId)
-    .gte("created_at", oneHourAgo);
-
-  if ((count ?? 0) >= RATE_LIMIT_PER_HOUR) {
-    throw new Error(
-      "Rate limit exceeded. You can generate up to 10 questions per hour."
-    );
-  }
+  await checkRateLimit(supabase, "questions", "generated_by", userId, 10);
 
   // Fetch concept
   const { data: concept, error: conceptError } = await supabase
@@ -89,6 +82,22 @@ export async function generateQuestion(
     // Continue without RAG context
   }
 
+  // Fetch recent questions for this concept to avoid repetition
+  const { data: recentQuestions } = await supabase
+    .from("questions")
+    .select("question_text")
+    .eq("concept_id", conceptId)
+    .eq("question_type", questionType)
+    .eq("difficulty", difficulty)
+    .eq("generated_by", userId)
+    .order("created_at", { ascending: false })
+    .limit(10);
+
+  const avoidSection =
+    recentQuestions && recentQuestions.length > 0
+      ? `\nDo NOT ask about the same topic as any of these previously generated questions. Cover a DIFFERENT subtopic or angle:\n${recentQuestions.map((q, i) => `${i + 1}. ${q.question_text}`).join("\n")}\n`
+      : "";
+
   // Build prompt
   const typeLabel =
     questionType === "multiple_choice" ? "multiple choice" : "free response";
@@ -100,7 +109,7 @@ export async function generateQuestion(
   const prompt = `You are an ML1 (Machine Learning 1) exam question generator. Generate a ${difficulty} ${typeLabel} question about "${typedConcept.name}".
 ${contextSection}
 Concept description: ${typedConcept.description}
-
+${avoidSection}
 ${questionType === "multiple_choice" ? "Provide exactly 4 options labeled A, B, C, D. The correct_answer should be the letter only." : "Set options to null. The correct_answer should be the full answer text."}`;
 
   const { output } = await generateText({
@@ -111,6 +120,30 @@ ${questionType === "multiple_choice" ? "Provide exactly 4 options labeled A, B, 
 
   if (!output) {
     throw new Error("Failed to generate question: no output from model");
+  }
+
+  // Verify correct answer for MC questions
+  if (questionType === "multiple_choice" && output.options) {
+    const optionsText = output.options
+      .map((o) => `${o.label}. ${o.text}`)
+      .join("\n");
+
+    const { output: verification } = await generateText({
+      model,
+      prompt: `Solve this question independently. Do NOT assume the provided answer is correct. Work through it step by step, then state which option (A, B, C, or D) is correct.
+
+Question: ${output.question_text}
+
+${optionsText}
+
+Return the letter of the correct answer and your reasoning.`,
+      output: Output.object({ schema: verificationSchema }),
+    });
+
+    if (verification && verification.correct_answer !== output.correct_answer) {
+      output.correct_answer = verification.correct_answer;
+      output.explanation = verification.reasoning;
+    }
   }
 
   // Insert into DB

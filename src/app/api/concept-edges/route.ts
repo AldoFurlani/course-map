@@ -1,34 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import type { ConceptEdge, CreateEdgeInput } from "@/lib/types/database";
-
-function wouldCreateCycle(
-  edges: ConceptEdge[],
-  newSourceId: string,
-  newTargetId: string
-): boolean {
-  // BFS from newTargetId: if we can reach newSourceId, adding
-  // newSourceId -> newTargetId would create a cycle.
-  const adjacency = new Map<string, string[]>();
-  for (const edge of edges) {
-    const targets = adjacency.get(edge.source_id) ?? [];
-    targets.push(edge.target_id);
-    adjacency.set(edge.source_id, targets);
-  }
-
-  const visited = new Set<string>();
-  const queue = [newTargetId];
-  while (queue.length > 0) {
-    const current = queue.shift()!;
-    if (current === newSourceId) return true;
-    if (visited.has(current)) continue;
-    visited.add(current);
-    for (const neighbor of adjacency.get(current) ?? []) {
-      queue.push(neighbor);
-    }
-  }
-  return false;
-}
+import { wouldCreateCycle } from "@/lib/graph/cycle-detection";
+import type { CreateEdgeInput } from "@/lib/types/database";
 
 export async function POST(request: NextRequest) {
   const supabase = await createClient();

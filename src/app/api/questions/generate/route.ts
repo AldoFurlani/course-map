@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { generateQuestion } from "@/lib/ai/generate-question";
+import { RateLimitError } from "@/lib/rate-limit";
 import type { QuestionType, Difficulty } from "@/lib/types/database";
 
 export async function POST(request: NextRequest) {
@@ -34,10 +35,10 @@ export async function POST(request: NextRequest) {
     );
     return NextResponse.json(question, { status: 201 });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    if (message.includes("Rate limit")) {
-      return NextResponse.json({ error: message }, { status: 429 });
+    if (err instanceof RateLimitError) {
+      return NextResponse.json({ error: err.message }, { status: 429 });
     }
+    const message = err instanceof Error ? err.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

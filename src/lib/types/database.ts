@@ -33,6 +33,25 @@ export interface ConceptGraphData {
   edges: ConceptEdge[];
 }
 
+// Auto-generated concept graph
+
+export interface GeneratedConcept {
+  name: string;
+  description: string;
+  status: "new" | "existing";
+  existing_id?: string;
+}
+
+export interface GeneratedEdge {
+  source_name: string;
+  target_name: string;
+}
+
+export interface GeneratedGraphPreview {
+  concepts: GeneratedConcept[];
+  edges: GeneratedEdge[];
+}
+
 // Phase 3: Course Materials
 
 export interface CourseMaterial {
@@ -85,6 +104,7 @@ export interface Question {
   explanation: string;
   source_context: string | null;
   generated_by: string | null;
+  curated: boolean;
   created_at: string;
 }
 

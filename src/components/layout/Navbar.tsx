@@ -13,6 +13,7 @@ interface NavbarProps {
 const studentLinks = [
   { href: "/graph", label: "Concept Graph" },
   { href: "/practice", label: "Practice" },
+  { href: "/history", label: "History" },
   { href: "/progress", label: "Progress" },
 ];
 

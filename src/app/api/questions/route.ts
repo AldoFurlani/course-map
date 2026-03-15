@@ -1,0 +1,59 @@
+import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
+
+export async function POST(request: NextRequest) {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const body = await request.json();
+  const {
+    concept_id,
+    question_type,
+    difficulty,
+    question_text,
+    options,
+    correct_answer,
+    explanation,
+  } = body;
+
+  if (!concept_id || !question_type || !difficulty || !question_text || !correct_answer || !explanation) {
+    return NextResponse.json(
+      { error: "Missing required fields" },
+      { status: 400 }
+    );
+  }
+
+  if (question_type === "multiple_choice" && (!options || options.length !== 4)) {
+    return NextResponse.json(
+      { error: "Multiple choice questions require exactly 4 options" },
+      { status: 400 }
+    );
+  }
+
+  const { data, error } = await supabase
+    .from("questions")
+    .insert({
+      concept_id,
+      question_type,
+      difficulty,
+      question_text,
+      options: question_type === "multiple_choice" ? options : null,
+      correct_answer,
+      explanation,
+      generated_by: null,
+    })
+    .select("*, concepts(name)")
+    .single();
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 400 });
+  }
+
+  return NextResponse.json(data, { status: 201 });
+}

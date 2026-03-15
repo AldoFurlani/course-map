@@ -151,7 +151,8 @@ export function MaterialManager({
     formData.append("file", file);
     formData.append("title", title.trim());
     if (conceptId && conceptId !== "none") {
-      formData.append("concept_id", conceptId);
+      const resolvedId = concepts.find((c) => c.name === conceptId)?.id;
+      if (resolvedId) formData.append("concept_id", resolvedId);
     }
 
     try {
@@ -242,7 +243,7 @@ export function MaterialManager({
                   <SelectContent>
                     <SelectItem value="none">None</SelectItem>
                     {concepts.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>
+                      <SelectItem key={c.id} value={c.name}>
                         {c.name}
                       </SelectItem>
                     ))}

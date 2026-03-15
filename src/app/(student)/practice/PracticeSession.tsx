@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -11,7 +11,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, CheckCircle2, XCircle } from "lucide-react";
+import {
+  Loader2,
+  CheckCircle2,
+  XCircle,
+  ChevronDown,
+  ChevronUp,
+} from "lucide-react";
 import type {
   Concept,
   Question,
@@ -21,6 +27,8 @@ import type {
   ReadinessScore,
 } from "@/lib/types/database";
 
+type PracticeMode = "generate" | "bank";
+
 type State =
   | "select"
   | "generating"
@@ -28,6 +36,11 @@ type State =
   | "evaluating"
   | "feedback"
   | "self_assess";
+
+interface CuratedQuestion extends Question {
+  answered: boolean;
+  concepts?: { name: string } | null;
+}
 
 interface FeedbackData {
   response_id: string;
@@ -42,27 +55,82 @@ interface Props {
 }
 
 export default function PracticeSession({ concepts }: Props) {
+  const [mode, setMode] = useState<PracticeMode>("generate");
   const [state, setState] = useState<State>("select");
   const [conceptId, setConceptId] = useState("");
-  const [questionType, setQuestionType] =
-    useState<QuestionType>("multiple_choice");
+  const [bankConceptId, setBankConceptId] = useState("all");
+  const [curatedQuestions, setCuratedQuestions] = useState<CuratedQuestion[]>([]);
+  const [loadingBank, setLoadingBank] = useState(false);
+  const [bankExpandedId, setBankExpandedId] = useState<string | null>(null);
+  const [questionType, setQuestionType] = useState<QuestionType>("multiple_choice");
   const [difficulty, setDifficulty] = useState<Difficulty>("medium");
+
+  // Restore saved preferences after hydration to avoid SSR mismatch
+  useEffect(() => {
+    const savedType = localStorage.getItem("practice_questionType");
+    if (savedType === "multiple_choice" || savedType === "free_response") {
+      setQuestionType(savedType);
+    }
+    const savedDiff = localStorage.getItem("practice_difficulty");
+    if (savedDiff === "easy" || savedDiff === "medium" || savedDiff === "hard") {
+      setDifficulty(savedDiff);
+    }
+  }, []);
   const [question, setQuestion] = useState<Question | null>(null);
   const [answer, setAnswer] = useState("");
   const [feedbackData, setFeedbackData] = useState<FeedbackData | null>(null);
   const [readiness, setReadiness] = useState<ReadinessScore | null>(null);
   const [error, setError] = useState("");
 
+  useEffect(() => {
+    localStorage.setItem("practice_questionType", questionType);
+  }, [questionType]);
+
+  useEffect(() => {
+    localStorage.setItem("practice_difficulty", difficulty);
+  }, [difficulty]);
+
+  useEffect(() => {
+    if (mode !== "bank") return;
+    setLoadingBank(true);
+    const params = new URLSearchParams();
+    if (bankConceptId !== "all") {
+      const resolvedId = concepts.find((c) => c.name === bankConceptId)?.id;
+      if (resolvedId) params.set("concept_id", resolvedId);
+    }
+    fetch(`/api/questions/curated?${params}`)
+      .then((res) => res.json())
+      .then((data) => setCuratedQuestions(data.questions ?? []))
+      .finally(() => setLoadingBank(false));
+  }, [mode, bankConceptId]);
+
+  function handleStartCurated(q: CuratedQuestion) {
+    setConceptId(concepts.find((c) => c.id === q.concept_id)?.name ?? "");
+    setQuestion(q);
+    setAnswer("");
+    setFeedbackData(null);
+    setReadiness(null);
+    setError("");
+    setState("answering");
+  }
+
   async function handleGenerate() {
     setError("");
     setState("generating");
+
+    const resolvedId = concepts.find((c) => c.name === conceptId)?.id;
+    if (!resolvedId) {
+      setError("Could not resolve concept");
+      setState("select");
+      return;
+    }
 
     try {
       const res = await fetch("/api/questions/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          concept_id: conceptId,
+          concept_id: resolvedId,
           question_type: questionType,
           difficulty,
         }),
@@ -154,13 +222,32 @@ export default function PracticeSession({ concepts }: Props) {
     handleGenerate();
   }
 
-  const conceptName =
-    concepts.find((c) => c.id === conceptId)?.name ?? "Unknown";
+  const conceptName = conceptId || "Unknown";
 
   return (
     <div className="max-w-2xl space-y-6">
-      {/* Selection / Configuration */}
+      {/* Mode Toggle */}
       {state === "select" && (
+        <div className="flex gap-2">
+          <Button
+            variant={mode === "generate" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setMode("generate")}
+          >
+            Generate
+          </Button>
+          <Button
+            variant={mode === "bank" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setMode("bank")}
+          >
+            Question Bank
+          </Button>
+        </div>
+      )}
+
+      {/* Generate Mode — Selection / Configuration */}
+      {state === "select" && mode === "generate" && (
         <Card>
           <CardHeader>
             <CardTitle>Practice Setup</CardTitle>
@@ -177,7 +264,7 @@ export default function PracticeSession({ concepts }: Props) {
                 </SelectTrigger>
                 <SelectContent>
                   {concepts.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
+                    <SelectItem key={c.id} value={c.name}>
                       {c.name}
                     </SelectItem>
                   ))}
@@ -230,6 +317,105 @@ export default function PracticeSession({ concepts }: Props) {
             <Button onClick={handleGenerate} disabled={!conceptId}>
               Generate Question
             </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Question Bank Mode */}
+      {state === "select" && mode === "bank" && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Curated Questions</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label>Filter by Concept</Label>
+              <Select
+                value={bankConceptId}
+                onValueChange={(val) => setBankConceptId(val ?? "all")}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="All concepts" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All concepts</SelectItem>
+                  {concepts.map((c) => (
+                    <SelectItem key={c.id} value={c.name}>
+                      {c.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {loadingBank ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                <span>Loading questions...</span>
+              </div>
+            ) : curatedQuestions.length === 0 ? (
+              <p className="py-4 text-center text-sm text-muted-foreground">
+                No curated questions available yet.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground">
+                  {curatedQuestions.length} question
+                  {curatedQuestions.length !== 1 ? "s" : ""}
+                </p>
+                {curatedQuestions.map((q) => {
+                  const isExpanded = bankExpandedId === q.id;
+                  return (
+                    <div
+                      key={q.id}
+                      className={`rounded-lg border text-sm ${
+                        q.answered
+                          ? "border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950/30"
+                          : ""
+                      }`}
+                    >
+                      <button
+                        className="flex w-full items-center justify-between px-3 py-2.5 text-left"
+                        onClick={() =>
+                          setBankExpandedId(isExpanded ? null : q.id)
+                        }
+                      >
+                        <div className="flex items-center gap-2">
+                          {q.answered && (
+                            <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />
+                          )}
+                          <span className="font-medium">
+                            {q.concepts?.name ?? "Unknown"}
+                          </span>
+                          <span className="text-muted-foreground">
+                            &middot; {q.difficulty} &middot;{" "}
+                            {q.question_type === "multiple_choice"
+                              ? "MC"
+                              : "Free Response"}
+                          </span>
+                        </div>
+                        {isExpanded ? (
+                          <ChevronUp className="h-4 w-4" />
+                        ) : (
+                          <ChevronDown className="h-4 w-4" />
+                        )}
+                      </button>
+                      {isExpanded && (
+                        <div className="border-t px-3 py-3 space-y-3">
+                          <p>{q.question_text}</p>
+                          <Button
+                            size="sm"
+                            onClick={() => handleStartCurated(q)}
+                          >
+                            {q.answered ? "Try Again" : "Answer"}
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </CardContent>
         </Card>
       )}

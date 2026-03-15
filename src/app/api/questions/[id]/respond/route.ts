@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { evaluateAnswer } from "@/lib/ai/evaluate-answer";
+import { checkRateLimit, RateLimitError } from "@/lib/rate-limit";
 import type { Question } from "@/lib/types/database";
 
 export async function POST(
@@ -25,6 +26,16 @@ export async function POST(
       { error: "answer is required" },
       { status: 400 }
     );
+  }
+
+  // Rate limit check
+  try {
+    await checkRateLimit(supabase, "student_responses", "student_id", user.id, 30);
+  } catch (err) {
+    if (err instanceof RateLimitError) {
+      return NextResponse.json({ error: err.message }, { status: 429 });
+    }
+    throw err;
   }
 
   // Fetch the question

@@ -19,10 +19,16 @@ import {
 } from "@/components/ui/card";
 import { ConceptGraph } from "@/components/graph/ConceptGraph";
 import { layoutGraph } from "@/lib/graph/layout";
-import type { Concept, ConceptEdge } from "@/lib/types/database";
+import type {
+  Concept,
+  ConceptEdge,
+  GeneratedConcept,
+  GeneratedEdge,
+  GeneratedGraphPreview,
+} from "@/lib/types/database";
 import type { Node, Edge } from "@xyflow/react";
 import type { ConceptNodeData } from "@/lib/graph/layout";
-import { Pencil, Trash2, X, Check } from "lucide-react";
+import { Pencil, Trash2, X, Check, Sparkles, Loader2 } from "lucide-react";
 
 interface ConceptManagerProps {
   initialConcepts: Concept[];
@@ -60,6 +66,17 @@ export function ConceptManager({
 
   const [error, setError] = useState<string | null>(null);
 
+  // Generate from materials
+  const [generating, setGenerating] = useState(false);
+  const [preview, setPreview] = useState<GeneratedGraphPreview | null>(null);
+  const [previewConcepts, setPreviewConcepts] = useState<
+    (GeneratedConcept & { included: boolean })[]
+  >([]);
+  const [previewEdges, setPreviewEdges] = useState<
+    (GeneratedEdge & { included: boolean })[]
+  >([]);
+  const [applying, setApplying] = useState(false);
+
   const recomputeLayout = useCallback(
     (c: Concept[], e: ConceptEdge[]) => {
       const { nodes, edges: fe } = layoutGraph(c, e);
@@ -68,6 +85,148 @@ export function ConceptManager({
     },
     []
   );
+
+  // Compute preview graph for the generated concepts/edges
+  function computePreviewGraph() {
+    const includedConcepts = previewConcepts.filter((c) => c.included);
+    const includedEdges = previewEdges.filter((e) => e.included);
+
+    const pseudoConcepts: Concept[] = includedConcepts.map((c, i) => ({
+      id: c.existing_id ?? `preview-${i}`,
+      name: c.name,
+      description: c.description,
+      created_at: "",
+      updated_at: "",
+    }));
+
+    const nameToId = new Map(
+      pseudoConcepts.map((c) => [c.name.toLowerCase().trim(), c.id])
+    );
+
+    const pseudoEdges: ConceptEdge[] = includedEdges
+      .map((e, i) => ({
+        id: `preview-edge-${i}`,
+        source_id: nameToId.get(e.source_name.toLowerCase().trim()) ?? "",
+        target_id: nameToId.get(e.target_name.toLowerCase().trim()) ?? "",
+        created_at: "",
+      }))
+      .filter((e) => e.source_id && e.target_id);
+
+    return layoutGraph(pseudoConcepts, pseudoEdges);
+  }
+
+  async function handleGenerate() {
+    setGenerating(true);
+    setError(null);
+
+    try {
+      const res = await fetch("/api/concepts/generate", { method: "POST" });
+
+      if (!res.ok) {
+        const data = await res.json();
+        setError(data.error || "Failed to generate concept graph");
+        setGenerating(false);
+        return;
+      }
+
+      const data: GeneratedGraphPreview = await res.json();
+      setPreview(data);
+      setPreviewConcepts(
+        data.concepts.map((c) => ({ ...c, included: true }))
+      );
+      setPreviewEdges(
+        data.edges.map((e) => ({ ...e, included: true }))
+      );
+    } catch {
+      setError("Failed to generate concept graph. Please try again.");
+    }
+
+    setGenerating(false);
+  }
+
+  async function handleApply() {
+    setApplying(true);
+    setError(null);
+
+    const conceptsToApply = previewConcepts.filter((c) => c.included);
+    const edgesToApply = previewEdges.filter((e) => e.included);
+
+    // Only include edges whose concepts are both included
+    const includedNames = new Set(
+      conceptsToApply.map((c) => c.name.toLowerCase().trim())
+    );
+    const validEdges = edgesToApply.filter(
+      (e) =>
+        includedNames.has(e.source_name.toLowerCase().trim()) &&
+        includedNames.has(e.target_name.toLowerCase().trim())
+    );
+
+    try {
+      const res = await fetch("/api/concepts/generate/apply", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          concepts: conceptsToApply.map(({ included, ...c }) => c),
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          edges: validEdges.map(({ included, ...e }) => e),
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        setError(data.error || "Failed to apply generated graph");
+        setApplying(false);
+        return;
+      }
+
+      const data = await res.json();
+      setConcepts(data.concepts);
+      setEdges(data.edges);
+      recomputeLayout(data.concepts, data.edges);
+      setPreview(null);
+      setPreviewConcepts([]);
+      setPreviewEdges([]);
+    } catch {
+      setError("Failed to apply generated graph. Please try again.");
+    }
+
+    setApplying(false);
+  }
+
+  function handleCancelPreview() {
+    setPreview(null);
+    setPreviewConcepts([]);
+    setPreviewEdges([]);
+  }
+
+  function togglePreviewConcept(index: number) {
+    setPreviewConcepts((prev) =>
+      prev.map((c, i) =>
+        i === index ? { ...c, included: !c.included } : c
+      )
+    );
+  }
+
+  function togglePreviewEdge(index: number) {
+    setPreviewEdges((prev) =>
+      prev.map((e, i) =>
+        i === index ? { ...e, included: !e.included } : e
+      )
+    );
+  }
+
+  function updatePreviewConceptName(index: number, name: string) {
+    setPreviewConcepts((prev) =>
+      prev.map((c, i) => (i === index ? { ...c, name } : c))
+    );
+  }
+
+  function updatePreviewConceptDescription(index: number, description: string) {
+    setPreviewConcepts((prev) =>
+      prev.map((c, i) => (i === index ? { ...c, description } : c))
+    );
+  }
 
   async function handleAddConcept(e: React.FormEvent) {
     e.preventDefault();
@@ -155,10 +314,19 @@ export function ConceptManager({
     setEdgeLoading(true);
     setError(null);
 
+    // Resolve names to IDs
+    const sourceId = concepts.find((c) => c.name === edgeSource)?.id;
+    const targetId = concepts.find((c) => c.name === edgeTarget)?.id;
+    if (!sourceId || !targetId) {
+      setError("Could not resolve concept names");
+      setEdgeLoading(false);
+      return;
+    }
+
     const res = await fetch("/api/concept-edges", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ source_id: edgeSource, target_id: edgeTarget }),
+      body: JSON.stringify({ source_id: sourceId, target_id: targetId }),
     });
 
     if (!res.ok) {
@@ -196,6 +364,161 @@ export function ConceptManager({
   const conceptName = (id: string) =>
     concepts.find((c) => c.id === id)?.name ?? id;
 
+  // Preview mode: show review UI
+  if (preview) {
+    const previewLayout = computePreviewGraph();
+
+    return (
+      <div className="grid grid-cols-1 lg:grid-cols-[400px_1fr] gap-6">
+        <div className="space-y-6">
+          {error && (
+            <div className="rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+              {error}
+            </div>
+          )}
+
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold">Review Generated Graph</h2>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleCancelPreview}
+                disabled={applying}
+              >
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleApply}
+                disabled={applying}
+              >
+                {applying ? (
+                  <>
+                    <Loader2 className="size-4 mr-2 animate-spin" />
+                    Applying...
+                  </>
+                ) : (
+                  "Apply"
+                )}
+              </Button>
+            </div>
+          </div>
+
+          {/* Preview concepts */}
+          <Card>
+            <CardHeader>
+              <CardTitle>
+                Concepts ({previewConcepts.filter((c) => c.included).length}/
+                {previewConcepts.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ul className="space-y-2">
+                {previewConcepts.map((concept, i) => (
+                  <li
+                    key={i}
+                    className={`rounded-md border px-3 py-2 ${
+                      concept.included ? "" : "opacity-50"
+                    }`}
+                  >
+                    <div className="flex items-start gap-2">
+                      <input
+                        type="checkbox"
+                        checked={concept.included}
+                        onChange={() => togglePreviewConcept(i)}
+                        className="mt-1.5 shrink-0"
+                      />
+                      <div className="flex-1 space-y-1.5">
+                        <div className="flex items-center gap-2">
+                          <Input
+                            value={concept.name}
+                            onChange={(e) =>
+                              updatePreviewConceptName(i, e.target.value)
+                            }
+                            className="h-7 text-sm"
+                            disabled={concept.status === "existing"}
+                          />
+                          <span
+                            className={`text-xs px-1.5 py-0.5 rounded shrink-0 ${
+                              concept.status === "existing"
+                                ? "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+                                : "bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-300"
+                            }`}
+                          >
+                            {concept.status === "existing"
+                              ? "Existing"
+                              : "New"}
+                          </span>
+                        </div>
+                        <Input
+                          value={concept.description}
+                          onChange={(e) =>
+                            updatePreviewConceptDescription(
+                              i,
+                              e.target.value
+                            )
+                          }
+                          placeholder="Description..."
+                          className="h-7 text-sm"
+                          disabled={concept.status === "existing"}
+                        />
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
+
+          {/* Preview edges */}
+          <Card>
+            <CardHeader>
+              <CardTitle>
+                Edges ({previewEdges.filter((e) => e.included).length}/
+                {previewEdges.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ul className="space-y-2">
+                {previewEdges.map((edge, i) => (
+                  <li
+                    key={i}
+                    className={`flex items-center gap-2 rounded-md border px-3 py-2 text-sm ${
+                      edge.included ? "" : "opacity-50"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={edge.included}
+                      onChange={() => togglePreviewEdge(i)}
+                      className="shrink-0"
+                    />
+                    <span>
+                      {edge.source_name}{" "}
+                      <span className="text-muted-foreground">→</span>{" "}
+                      {edge.target_name}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Right panel: preview graph */}
+        <div>
+          <h2 className="text-lg font-semibold mb-3">Preview</h2>
+          <ConceptGraph
+            nodes={previewLayout.nodes}
+            edges={previewLayout.edges}
+            interactive
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[400px_1fr] gap-6">
       {/* Left panel: forms + lists */}
@@ -205,6 +528,34 @@ export function ConceptManager({
             {error}
           </div>
         )}
+
+        {/* Generate from materials */}
+        <Card>
+          <CardContent className="pt-6">
+            <Button
+              onClick={handleGenerate}
+              disabled={generating}
+              variant="outline"
+              className="w-full"
+            >
+              {generating ? (
+                <>
+                  <Loader2 className="size-4 mr-2 animate-spin" />
+                  Analyzing materials...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="size-4 mr-2" />
+                  Generate from Materials
+                </>
+              )}
+            </Button>
+            <p className="text-xs text-muted-foreground mt-2">
+              Uses AI to extract concepts and prerequisites from uploaded course
+              materials.
+            </p>
+          </CardContent>
+        </Card>
 
         {/* Add concept form */}
         <Card>
@@ -254,7 +605,7 @@ export function ConceptManager({
                   </SelectTrigger>
                   <SelectContent>
                     {concepts.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>
+                      <SelectItem key={c.id} value={c.name}>
                         {c.name}
                       </SelectItem>
                     ))}
@@ -269,7 +620,7 @@ export function ConceptManager({
                   </SelectTrigger>
                   <SelectContent>
                     {concepts.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>
+                      <SelectItem key={c.id} value={c.name}>
                         {c.name}
                       </SelectItem>
                     ))}
