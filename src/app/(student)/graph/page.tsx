@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { layoutGraph } from "@/lib/graph/layout";
 import { computeEffectiveScores } from "@/lib/graph/readiness";
-import { ConceptGraph } from "@/components/graph/ConceptGraph";
+import StudentGraph from "./StudentGraph";
 import type { Concept, ConceptEdge } from "@/lib/types/database";
 
 export const dynamic = "force-dynamic";
@@ -52,7 +52,10 @@ export default async function GraphPage() {
       <p className="mt-2 mb-4 text-muted-foreground">
         Explore course concepts and their prerequisites.
       </p>
-      <ConceptGraph nodes={nodes} edges={flowEdges} />
+      <p className="text-sm text-muted-foreground mb-2">
+        Click a concept to start practicing.
+      </p>
+      <StudentGraph nodes={nodes} edges={flowEdges} />
     </div>
   );
 }

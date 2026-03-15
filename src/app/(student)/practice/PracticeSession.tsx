@@ -52,12 +52,13 @@ interface FeedbackData {
 
 interface Props {
   concepts: Pick<Concept, "id" | "name">[];
+  initialConcept?: string;
 }
 
-export default function PracticeSession({ concepts }: Props) {
+export default function PracticeSession({ concepts, initialConcept }: Props) {
   const [mode, setMode] = useState<PracticeMode>("generate");
   const [state, setState] = useState<State>("select");
-  const [conceptId, setConceptId] = useState("");
+  const [conceptId, setConceptId] = useState(initialConcept ?? "");
   const [bankConceptId, setBankConceptId] = useState("all");
   const [curatedQuestions, setCuratedQuestions] = useState<CuratedQuestion[]>([]);
   const [loadingBank, setLoadingBank] = useState(false);

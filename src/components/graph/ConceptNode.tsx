@@ -19,7 +19,7 @@ export function ConceptNode({ data }: NodeProps<ConceptNodeType>) {
   const colorClass = getScoreColor(data.effectiveScore);
 
   return (
-    <div className={`rounded-lg border ${colorClass} px-4 py-3 shadow-sm w-[200px] text-center`}>
+    <div className={`rounded-lg border ${colorClass} px-4 py-3 shadow-sm w-[200px] text-center cursor-pointer hover:ring-2 hover:ring-primary/50 transition-shadow`}>
       <Handle
         type="target"
         position={Position.Top}
@@ -27,7 +27,7 @@ export function ConceptNode({ data }: NodeProps<ConceptNodeType>) {
       />
       <div className="font-medium text-sm">{data.label}</div>
       {data.description && (
-        <div className="text-xs text-muted-foreground mt-1 line-clamp-2">
+        <div className="text-xs text-muted-foreground mt-1">
           {data.description}
         </div>
       )}

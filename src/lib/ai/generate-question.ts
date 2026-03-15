@@ -149,8 +149,6 @@ Concept description: ${typedConcept.description}
 ${avoidSection}
 ${questionType === "multiple_choice" ? "Provide exactly 4 options labeled A, B, C, D. The correct_answer should be the letter only." : "Set options to null. The correct_answer should be the full answer text."}`;
 
-  console.log("[generate-question] Prompt:\n", prompt);
-
   const { output } = await generateText({
     model,
     prompt,
@@ -160,8 +158,6 @@ ${questionType === "multiple_choice" ? "Provide exactly 4 options labeled A, B, 
   if (!output) {
     throw new Error("Failed to generate question: no output from model");
   }
-
-  console.log("[generate-question] Output:\n", JSON.stringify(output, null, 2));
 
   // Verify correct answer for MC questions
   if (questionType === "multiple_choice" && output.options) {

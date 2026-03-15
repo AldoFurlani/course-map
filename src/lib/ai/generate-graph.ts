@@ -126,8 +126,6 @@ ${existingSection}
 
 ${materialText}`;
 
-  console.log("[generate-graph] Prompt:\n", prompt);
-
   const { output } = await generateText({
     model,
     prompt,
@@ -137,8 +135,6 @@ ${materialText}`;
   if (!output) {
     throw new Error("Failed to generate concept graph: no output from model");
   }
-
-  console.log("[generate-graph] Output:\n", JSON.stringify(output, null, 2));
 
   return { graph: output, chunkIdByIndex };
 }
