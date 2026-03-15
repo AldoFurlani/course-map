@@ -16,21 +16,24 @@ import {
 
 export default function SignupPage() {
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [role, setRole] = useState<"student" | "professor">("student");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
+  const [isError, setIsError] = useState(false);
 
   async function handleSignup(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setMessage("");
+    setIsError(false);
 
     const supabase = createClient();
-    const { error } = await supabase.auth.signInWithOtp({
+    const { error } = await supabase.auth.signUp({
       email,
+      password,
       options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
         data: {
           full_name: fullName,
           role,
@@ -40,10 +43,12 @@ export default function SignupPage() {
 
     if (error) {
       setMessage(error.message);
-    } else {
-      setMessage("Check your email for the confirmation link!");
+      setIsError(true);
+      setLoading(false);
+      return;
     }
-    setLoading(false);
+
+    window.location.href = "/";
   }
 
   return (
@@ -80,6 +85,18 @@ export default function SignupPage() {
               />
             </div>
             <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
+              <Input
+                id="password"
+                type="password"
+                placeholder="At least 6 characters"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                minLength={6}
+                required
+              />
+            </div>
+            <div className="space-y-2">
               <Label>Role</Label>
               <div className="flex gap-4">
                 <label className="flex items-center gap-2 cursor-pointer">
@@ -107,11 +124,11 @@ export default function SignupPage() {
               </div>
             </div>
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Sending link..." : "Sign up with magic link"}
+              {loading ? "Creating account..." : "Create account"}
             </Button>
           </form>
           {message && (
-            <p className="mt-4 text-center text-sm text-muted-foreground">
+            <p className={`mt-4 text-center text-sm ${isError ? "text-destructive" : "text-muted-foreground"}`}>
               {message}
             </p>
           )}

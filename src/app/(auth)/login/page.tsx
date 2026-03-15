@@ -16,28 +16,31 @@ import {
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
+  const [isError, setIsError] = useState(false);
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setMessage("");
+    setIsError(false);
 
     const supabase = createClient();
-    const { error } = await supabase.auth.signInWithOtp({
+    const { error } = await supabase.auth.signInWithPassword({
       email,
-      options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
-      },
+      password,
     });
 
     if (error) {
       setMessage(error.message);
-    } else {
-      setMessage("Check your email for the login link!");
+      setIsError(true);
+      setLoading(false);
+      return;
     }
-    setLoading(false);
+
+    window.location.href = "/";
   }
 
   return (
@@ -46,7 +49,7 @@ export default function LoginPage() {
         <CardHeader className="text-center">
           <CardTitle className="text-2xl">Course Map</CardTitle>
           <CardDescription>
-            Sign in with your email to get started
+            Sign in with your email and password
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -62,12 +65,23 @@ export default function LoginPage() {
                 required
               />
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
+              <Input
+                id="password"
+                type="password"
+                placeholder="Your password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+            </div>
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Sending link..." : "Send magic link"}
+              {loading ? "Signing in..." : "Sign in"}
             </Button>
           </form>
           {message && (
-            <p className="mt-4 text-center text-sm text-muted-foreground">
+            <p className={`mt-4 text-center text-sm ${isError ? "text-destructive" : "text-muted-foreground"}`}>
               {message}
             </p>
           )}
