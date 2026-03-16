@@ -21,5 +21,13 @@ export default function StudentGraph({ nodes, edges }: Props) {
     [router]
   );
 
-  return <ConceptGraph nodes={nodes} edges={edges} onConceptClick={handleConceptClick} />;
+  return (
+    <ConceptGraph
+      nodes={nodes}
+      edges={edges}
+      onConceptClick={handleConceptClick}
+      className="h-full"
+      fullBleed
+    />
+  );
 }

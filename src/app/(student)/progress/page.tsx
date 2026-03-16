@@ -103,7 +103,7 @@ export default async function ProgressPage() {
   const masteredCount = Array.from(effectiveMap.values()).filter((s) => s >= 0.7).length;
 
   return (
-    <div>
+    <div className="mx-auto max-w-7xl px-4 py-6 pb-24 sm:px-6">
       <h1 className="text-2xl font-bold">Your Progress</h1>
       <p className="mt-2 mb-6 text-muted-foreground">
         Track your readiness across all course concepts.

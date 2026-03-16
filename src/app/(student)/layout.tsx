@@ -32,11 +32,9 @@ export default async function StudentLayout({
   }
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen">
+      <main>{children}</main>
       <Navbar role={profile.role} fullName={profile.full_name} />
-      <main className="flex-1 mx-auto w-full max-w-7xl px-4 py-6">
-        {children}
-      </main>
     </div>
   );
 }
