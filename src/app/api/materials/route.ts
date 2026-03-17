@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { requireProfessor } from "@/lib/auth";
+import { checkRateLimit, RateLimitError } from "@/lib/rate-limit";
 import { chunkText, chunkPdfPages, stripMarkdown } from "@/lib/rag/chunker";
 
 export async function GET() {
@@ -18,13 +20,19 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const supabase = await createClient();
+  const auth = await requireProfessor();
+  if (auth instanceof NextResponse) return auth;
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const supabase = await createClient();
+  const userId = auth.user.id;
+
+  try {
+    await checkRateLimit(supabase, "course_materials", "uploaded_by", userId, 20);
+  } catch (err) {
+    if (err instanceof RateLimitError) {
+      return NextResponse.json({ error: err.message }, { status: 429 });
+    }
+    throw err;
   }
 
   const formData = await request.formData();
@@ -49,7 +57,7 @@ export async function POST(request: NextRequest) {
   const fileBuffer = Buffer.from(await file.arrayBuffer());
 
   // Upload file to Supabase Storage
-  const filePath = `${user.id}/${Date.now()}_${file.name}`;
+  const filePath = `${userId}/${Date.now()}_${file.name}`;
   const { error: uploadError } = await supabase.storage
     .from("course-materials")
     .upload(filePath, fileBuffer, {
@@ -68,7 +76,7 @@ export async function POST(request: NextRequest) {
       file_name: file.name,
       file_type: fileType,
       file_path: filePath,
-      uploaded_by: user.id,
+      uploaded_by: userId,
     })
     .select()
     .single();

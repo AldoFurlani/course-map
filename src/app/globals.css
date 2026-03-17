@@ -120,29 +120,29 @@
    Dark theme — warm espresso, not cold charcoal
    ============================================================ */
 .dark {
-  --background: oklch(0.16 0.012 55);
-  --foreground: oklch(0.90 0.008 80);
-  --card: oklch(0.20 0.014 55);
-  --card-foreground: oklch(0.90 0.008 80);
-  --popover: oklch(0.20 0.014 55);
-  --popover-foreground: oklch(0.90 0.008 80);
+  --background: oklch(0.19 0.006 55);
+  --foreground: oklch(0.91 0.006 80);
+  --card: oklch(0.23 0.007 55);
+  --card-foreground: oklch(0.91 0.006 80);
+  --popover: oklch(0.23 0.007 55);
+  --popover-foreground: oklch(0.91 0.006 80);
 
   /* Brand — warm indigo for dark bg */
   --primary: oklch(0.65 0.18 270);
   --primary-foreground: oklch(0.14 0.02 270);
 
   /* Neutral surfaces */
-  --secondary: oklch(0.23 0.012 55);
-  --secondary-foreground: oklch(0.90 0.008 80);
-  --muted: oklch(0.23 0.012 55);
-  --muted-foreground: oklch(0.58 0.015 65);
-  --accent: oklch(0.25 0.014 55);
-  --accent-foreground: oklch(0.90 0.008 80);
+  --secondary: oklch(0.26 0.006 55);
+  --secondary-foreground: oklch(0.91 0.006 80);
+  --muted: oklch(0.26 0.006 55);
+  --muted-foreground: oklch(0.59 0.010 65);
+  --accent: oklch(0.28 0.007 55);
+  --accent-foreground: oklch(0.91 0.006 80);
 
   /* Utility */
   --destructive: oklch(0.65 0.18 25);
-  --border: oklch(0.28 0.012 55);
-  --input: oklch(0.28 0.012 55);
+  --border: oklch(0.31 0.006 55);
+  --input: oklch(0.31 0.006 55);
   --ring: oklch(0.65 0.18 270);
 
   /* Chart palette */
@@ -153,13 +153,13 @@
   --chart-5: oklch(0.34 0.16 270);
 
   /* Sidebar */
-  --sidebar: oklch(0.18 0.012 55);
-  --sidebar-foreground: oklch(0.90 0.008 80);
+  --sidebar: oklch(0.21 0.006 55);
+  --sidebar-foreground: oklch(0.91 0.006 80);
   --sidebar-primary: oklch(0.65 0.18 270);
   --sidebar-primary-foreground: oklch(0.14 0.02 270);
-  --sidebar-accent: oklch(0.25 0.014 55);
-  --sidebar-accent-foreground: oklch(0.90 0.008 80);
-  --sidebar-border: oklch(0.28 0.012 55);
+  --sidebar-accent: oklch(0.28 0.007 55);
+  --sidebar-accent-foreground: oklch(0.91 0.006 80);
+  --sidebar-border: oklch(0.31 0.006 55);
   --sidebar-ring: oklch(0.65 0.18 270);
 
   /* Semantic */
@@ -186,4 +186,35 @@
 /* Scale KaTeX math to visually match sans body text */
 .katex {
   font-size: 0.92em;
+}
+
+/* Auth page entrance animations */
+@keyframes auth-brand-enter {
+  from {
+    opacity: 0;
+    transform: translateX(-16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes auth-field-enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.auth-brand-enter {
+  animation: auth-brand-enter 0.6s ease-out both;
+}
+
+.auth-field-enter {
+  animation: auth-field-enter 0.4s ease-out both;
 }

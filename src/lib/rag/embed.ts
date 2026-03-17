@@ -34,13 +34,15 @@ export async function getConceptEmbedding(concept: Concept): Promise<number[]> {
   const queryText = `${concept.name}: ${concept.description}`;
   const embedding = await embedText(queryText);
 
-  // Cache for future use (fire-and-forget)
+  // Cache for future use (fire-and-forget with error logging)
   const supabase = await createClient();
   supabase
     .from("concepts")
     .update({ cached_embedding: JSON.stringify(embedding) })
     .eq("id", concept.id)
-    .then();
+    .then(({ error }) => {
+      if (error) console.error("Failed to cache concept embedding:", error.message);
+    });
 
   return embedding;
 }

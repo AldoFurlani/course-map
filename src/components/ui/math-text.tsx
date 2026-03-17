@@ -144,8 +144,8 @@ function renderMathInText(text: string): string {
   );
 
   // Basic markdown: bold and italic (after math so we don't mangle LaTeX)
-  result = result.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
-  result = result.replace(/\*(.+?)\*/g, "<em>$1</em>");
+  result = result.replace(/\*\*(.+?)\*\*/g, (_, p1: string) => `<strong>${escapeHtml(p1)}</strong>`);
+  result = result.replace(/\*(.+?)\*/g, (_, p1: string) => `<em>${escapeHtml(p1)}</em>`);
 
   // Convert newlines to <br> for multi-line questions
   result = result.replace(/\n/g, "<br>");

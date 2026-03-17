@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
+import { requireProfessor } from "@/lib/auth";
 
 export async function POST(request: Request) {
+  const auth = await requireProfessor();
+  if (auth instanceof NextResponse) return auth;
+
   try {
     const formData = await request.formData();
     const file = formData.get("file") as File | null;

@@ -120,7 +120,7 @@ export async function POST() {
       : edges.filter(
           (e) =>
             !dagResult.backEdges.some(
-              (be) =>
+              (be: { source: string; target: string }) =>
                 be.source === e.source_name && be.target === e.target_name
             )
         );

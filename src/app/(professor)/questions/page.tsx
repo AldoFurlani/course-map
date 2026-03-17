@@ -1,6 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import QuestionBank from "./QuestionBank";
 
+export const dynamic = "force-dynamic";
+
 export default async function QuestionsPage() {
   const supabase = await createClient();
 

@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { requireProfessor } from "@/lib/auth";
 
 export async function DELETE(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
+  const auth = await requireProfessor();
+  if (auth instanceof NextResponse) return auth;
+
   const supabase = await createClient();
 
   // Get the material to find its file path

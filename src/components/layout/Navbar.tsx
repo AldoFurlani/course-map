@@ -70,7 +70,7 @@ export default function Navbar({ role, fullName }: NavbarProps) {
                     ? "text-primary"
                     : "text-muted-foreground hover:text-foreground"
                 }`}
-                render={<Link href={link.href} />}
+                render={<Link href={link.href} aria-label={link.label} />}
               >
                 {isActive && (
                   <span className="absolute -left-[6px] top-1/2 -translate-y-1/2 h-5 w-[2px] rounded-full bg-primary" />
@@ -89,8 +89,9 @@ export default function Navbar({ role, fullName }: NavbarProps) {
       <div className="flex flex-col items-center gap-1">
         <Tooltip>
           <TooltipTrigger
-            className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground"
+            className="relative flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground"
             onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+            render={<button type="button" aria-label="Toggle theme" />}
           >
             <Sun className="size-[17px] rotate-0 scale-100 transition-transform dark:-rotate-90 dark:scale-0" strokeWidth={1.5} />
             <Moon className="absolute size-[17px] rotate-90 scale-0 transition-transform dark:rotate-0 dark:scale-100" strokeWidth={1.5} />
@@ -102,6 +103,7 @@ export default function Navbar({ role, fullName }: NavbarProps) {
           <TooltipTrigger
             className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground"
             onClick={handleLogout}
+            render={<button type="button" aria-label={`Log out (${fullName})`} />}
           >
             <LogOut className="size-[17px]" strokeWidth={1.5} />
           </TooltipTrigger>

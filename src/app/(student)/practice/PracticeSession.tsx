@@ -102,17 +102,23 @@ export default function PracticeSession({ concepts, initialConcept }: Props) {
 
   useEffect(() => {
     if (mode !== "bank") return;
+    const controller = new AbortController();
     setLoadingBank(true);
     const params = new URLSearchParams();
     if (bankConceptId !== "all") {
       const resolvedId = concepts.find((c) => c.name === bankConceptId)?.id;
       if (resolvedId) params.set("concept_id", resolvedId);
     }
-    fetch(`/api/questions/curated?${params}`)
+    fetch(`/api/questions/curated?${params}`, { signal: controller.signal })
       .then((res) => res.json())
       .then((data) => setCuratedQuestions(data.questions ?? []))
+      .catch((err) => {
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        console.error("Failed to fetch curated questions:", err);
+      })
       .finally(() => setLoadingBank(false));
-  }, [mode, bankConceptId]);
+    return () => controller.abort();
+  }, [mode, bankConceptId, concepts]);
 
   function handleStartCurated(q: CuratedQuestion) {
     setConceptId(concepts.find((c) => c.id === q.concept_id)?.name ?? "");

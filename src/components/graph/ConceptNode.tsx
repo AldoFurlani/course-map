@@ -37,7 +37,8 @@ export function ConceptNode({ data }: NodeProps<ConceptNodeType>) {
     const delay = data.depth * 80 + Math.random() * 60;
     const timer = setTimeout(() => setVisible(true), delay);
     return () => clearTimeout(timer);
-  }, [data.depth]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div
@@ -104,18 +105,6 @@ export function ConceptNode({ data }: NodeProps<ConceptNodeType>) {
         className="!bg-muted-foreground/25 !border-none !w-1.5 !h-1.5"
       />
 
-      {/* Hover tooltip — floats below the node, pointer-events-none prevents jitter */}
-      {data.description && (
-        <div
-          className="absolute left-0 right-0 top-full z-50 hidden group-hover:block pointer-events-none"
-        >
-          <div className={`mt-1 ${isRoot ? "px-3.5" : "px-2.5"} py-1.5 rounded-sm bg-card border border-border/60 shadow-[0_3px_12px_rgba(0,0,0,0.1)]`}>
-            <p className="text-[10px] text-muted-foreground leading-relaxed">
-              {data.description}
-            </p>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

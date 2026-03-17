@@ -49,10 +49,9 @@ export function validateDAG(
     adjacency.set(edge.source, targets);
   }
 
-  // DFS-based cycle detection
-  const WHITE = 0; // unvisited
-  const GRAY = 1; // in current path
-  const BLACK = 2; // fully processed
+  const WHITE = 0;
+  const GRAY = 1;
+  const BLACK = 2;
   const color = new Map<string, number>();
   for (const node of nodes) color.set(node, WHITE);
 

@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { requireProfessor } from "@/lib/auth";
 import { wouldCreateCycle } from "@/lib/graph/cycle-detection";
 import type { CreateEdgeInput } from "@/lib/types/database";
 
 export async function POST(request: NextRequest) {
+  const auth = await requireProfessor();
+  if (auth instanceof NextResponse) return auth;
+
   const supabase = await createClient();
   const body = (await request.json()) as CreateEdgeInput;
 
@@ -51,6 +55,9 @@ export async function POST(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
+  const auth = await requireProfessor();
+  if (auth instanceof NextResponse) return auth;
+
   const supabase = await createClient();
   const { searchParams } = new URL(request.url);
   const id = searchParams.get("id");

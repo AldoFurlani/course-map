@@ -3,6 +3,8 @@ import { layoutGraph } from "@/lib/graph/layout";
 import { ConceptManager } from "./ConceptManager";
 import type { Concept, ConceptEdge } from "@/lib/types/database";
 
+export const dynamic = "force-dynamic";
+
 export default async function ConceptsPage() {
   const supabase = await createClient();
 

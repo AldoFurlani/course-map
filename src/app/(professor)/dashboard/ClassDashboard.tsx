@@ -60,15 +60,15 @@ interface Props {
 }
 
 function scoreColor(score: number): string {
-  if (score >= 0.7) return "bg-green-500";
-  if (score >= 0.4) return "bg-yellow-500";
-  return "bg-red-500";
+  if (score >= 0.7) return "bg-success";
+  if (score >= 0.4) return "bg-warning";
+  return "bg-destructive";
 }
 
 function scoreCellColor(score: number): string {
-  if (score >= 0.7) return "bg-green-100 text-green-900 dark:bg-green-950 dark:text-green-100";
-  if (score >= 0.4) return "bg-yellow-100 text-yellow-900 dark:bg-yellow-950 dark:text-yellow-100";
-  return "bg-red-100 text-red-900 dark:bg-red-950 dark:text-red-100";
+  if (score >= 0.7) return "bg-success/10 text-success";
+  if (score >= 0.4) return "bg-warning/10 text-warning";
+  return "bg-destructive/10 text-destructive";
 }
 
 const PAGE_SIZE = 20;

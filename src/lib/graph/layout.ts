@@ -57,6 +57,14 @@ export function layoutGraph(
     }
   }
 
+  // Build parent map for O(1) lookups
+  const parentMap = new Map<string, string[]>();
+  for (const edge of edges) {
+    const parents = parentMap.get(edge.target_id) ?? [];
+    parents.push(edge.source_id);
+    parentMap.set(edge.target_id, parents);
+  }
+
   while (queue.length > 0) {
     const current = queue.shift()!;
     const currentDepth = depthMap.get(current) ?? 0;
@@ -66,11 +74,9 @@ export function layoutGraph(
         depthMap.set(child, currentDepth + 1);
       }
       // Only enqueue when all parents have been processed
-      const parentCount = inDegree.get(child) ?? 0;
-      const processedParents = edges.filter(
-        (e) => e.target_id === child && depthMap.has(e.source_id)
-      ).length;
-      if (processedParents >= parentCount) {
+      const parents = parentMap.get(child) ?? [];
+      const processedParents = parents.filter((p) => depthMap.has(p)).length;
+      if (processedParents >= parents.length) {
         queue.push(child);
       }
     }

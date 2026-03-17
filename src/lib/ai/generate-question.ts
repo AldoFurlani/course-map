@@ -129,20 +129,21 @@ IMPORTANT — Math formatting: Use LaTeX notation with dollar-sign delimiters fo
 - Display: "$$\\eta_t = \\frac{1}{1 + \\sum_j |g_{t,j}|}$$"
 Never write bare math symbols like η_t or Σ_j — always wrap them in dollar signs.`;
 
-  // Log the full prompt and retrieval details
-  console.log("\n========== QUESTION GENERATION ==========");
-  console.log(`Concept: ${typedConcept.name} (${conceptId})`);
-  console.log(`Type: ${typeLabel} | Difficulty: ${difficulty}`);
-  console.log(`Embedding: ${usedCachedEmbedding ? "CACHED" : "computed"} | Chunks: ${retrievedChunks.length}`);
-  if (retrievedChunks.length > 0) {
-    retrievedChunks.forEach((c, i) => {
-      console.log(
-        `  Chunk ${i + 1}: similarity=${c.similarity.toFixed(3)} page=${c.page_number ?? "?"} index=${c.chunk_index} (${c.chunk_text.slice(0, 80)}...)`
-      );
-    });
+  if (process.env.DEBUG_AI) {
+    console.log("\n========== QUESTION GENERATION ==========");
+    console.log(`Concept: ${typedConcept.name} (${conceptId})`);
+    console.log(`Type: ${typeLabel} | Difficulty: ${difficulty}`);
+    console.log(`Embedding: ${usedCachedEmbedding ? "CACHED" : "computed"} | Chunks: ${retrievedChunks.length}`);
+    if (retrievedChunks.length > 0) {
+      retrievedChunks.forEach((c, i) => {
+        console.log(
+          `  Chunk ${i + 1}: similarity=${c.similarity.toFixed(3)} page=${c.page_number ?? "?"} index=${c.chunk_index} (${c.chunk_text.slice(0, 80)}...)`
+        );
+      });
+    }
+    console.log(`\n--- FULL PROMPT ---\n${prompt}`);
+    console.log("==========================================\n");
   }
-  console.log(`\n--- FULL PROMPT ---\n${prompt}`);
-  console.log("==========================================\n");
 
   const { output } = await generateText({
     model,

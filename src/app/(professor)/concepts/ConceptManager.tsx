@@ -95,6 +95,7 @@ export function ConceptManager({
       id: c.existing_id ?? `preview-${i}`,
       name: c.name,
       description: c.description,
+      cached_embedding: null,
       created_at: "",
       updated_at: "",
     }));

@@ -2,6 +2,8 @@ import { createClient } from "@/lib/supabase/server";
 import { MaterialManager } from "./MaterialManager";
 import type { CourseMaterial } from "@/lib/types/database";
 
+export const dynamic = "force-dynamic";
+
 export default async function MaterialsPage() {
   const supabase = await createClient();
 

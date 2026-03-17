@@ -87,7 +87,8 @@ export function MaterialPanel({
       if (!res.ok) throw new Error("Failed to get file URL");
       const data = await res.json();
       setPdfUrl(data.url);
-    } catch {
+    } catch (err) {
+      console.error("Failed to open PDF:", err);
       setPdfUrl(null);
       setPdfView(null);
     }

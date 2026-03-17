@@ -56,39 +56,23 @@ export async function updateReadinessAfterResponse(
   const rawScore = computeRawScore(quizEWMA, selfAssessmentAvg);
   const responseCount = prevCount + 1;
 
-  if (existing) {
-    // Update
-    const { data, error } = await supabase
-      .from("readiness_scores")
-      .update({
-        quiz_ewma: quizEWMA,
-        self_assessment_avg: selfAssessmentAvg,
-        raw_score: rawScore,
-        response_count: responseCount,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", existing.id)
-      .select()
-      .single();
-
-    if (error) throw new Error(`Failed to update readiness: ${error.message}`);
-    return data as ReadinessScore;
-  } else {
-    // Insert
-    const { data, error } = await supabase
-      .from("readiness_scores")
-      .insert({
+  const { data, error } = await supabase
+    .from("readiness_scores")
+    .upsert(
+      {
         student_id: studentId,
         concept_id: conceptId,
         quiz_ewma: quizEWMA,
         self_assessment_avg: selfAssessmentAvg,
         raw_score: rawScore,
         response_count: responseCount,
-      })
-      .select()
-      .single();
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "student_id,concept_id" }
+    )
+    .select()
+    .single();
 
-    if (error) throw new Error(`Failed to insert readiness: ${error.message}`);
-    return data as ReadinessScore;
-  }
+  if (error) throw new Error(`Failed to upsert readiness: ${error.message}`);
+  return data as ReadinessScore;
 }

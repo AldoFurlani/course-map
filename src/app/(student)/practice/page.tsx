@@ -1,6 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import PracticeSession from "./PracticeSession";
 
+export const dynamic = "force-dynamic";
+
 export default async function PracticePage({
   searchParams,
 }: {
