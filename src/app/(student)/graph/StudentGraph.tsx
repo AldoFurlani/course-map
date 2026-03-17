@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useState, useMemo } from "react";
 import { ConceptGraph } from "@/components/graph/ConceptGraph";
+import { MaterialPanel } from "@/components/graph/MaterialPanel";
 import type { ConceptNodeData } from "@/lib/graph/layout";
 import type { Node, Edge } from "@xyflow/react";
 
@@ -14,8 +15,31 @@ interface Props {
 export default function StudentGraph({ nodes, edges }: Props) {
   const router = useRouter();
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
+  const [selectedNode, setSelectedNode] = useState<{
+    conceptId: string;
+    conceptName: string;
+    conceptDescription: string | null;
+  } | null>(null);
 
   const handleConceptClick = useCallback(
+    (conceptName: string) => {
+      const node = nodes.find((n) => n.data.label === conceptName);
+      if (node) {
+        setSelectedNode({
+          conceptId: node.data.conceptId,
+          conceptName: node.data.label,
+          conceptDescription: node.data.description ?? null,
+        });
+      }
+    },
+    [nodes]
+  );
+
+  const handleClosePanel = useCallback(() => {
+    setSelectedNode(null);
+  }, []);
+
+  const handlePractice = useCallback(
     (conceptName: string) => {
       router.push(`/practice?concept=${encodeURIComponent(conceptName)}`);
     },
@@ -44,13 +68,23 @@ export default function StudentGraph({ nodes, edges }: Props) {
   }, [hoveredNodeId, edges]);
 
   return (
-    <ConceptGraph
-      nodes={nodes}
-      edges={styledEdges}
-      onConceptClick={handleConceptClick}
-      onNodeHover={setHoveredNodeId}
-      className="h-full"
-      fullBleed
-    />
+    <>
+      <ConceptGraph
+        nodes={nodes}
+        edges={styledEdges}
+        onConceptClick={handleConceptClick}
+        onNodeHover={setHoveredNodeId}
+        className="h-full"
+        fullBleed
+      />
+
+      <MaterialPanel
+        conceptId={selectedNode?.conceptId ?? null}
+        conceptName={selectedNode?.conceptName ?? null}
+        conceptDescription={selectedNode?.conceptDescription ?? null}
+        onClose={handleClosePanel}
+        onPractice={handlePractice}
+      />
+    </>
   );
 }

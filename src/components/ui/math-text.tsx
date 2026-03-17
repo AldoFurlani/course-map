@@ -143,6 +143,10 @@ function renderMathInText(text: string): string {
     (_, tex: string) => renderKatex(unicodeToLatex(tex), false)
   );
 
+  // Basic markdown: bold and italic (after math so we don't mangle LaTeX)
+  result = result.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+  result = result.replace(/\*(.+?)\*/g, "<em>$1</em>");
+
   // Convert newlines to <br> for multi-line questions
   result = result.replace(/\n/g, "<br>");
 

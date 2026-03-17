@@ -1,17 +1,14 @@
 import { createClient } from "@/lib/supabase/server";
 import { MaterialManager } from "./MaterialManager";
-import type { CourseMaterial, Concept } from "@/lib/types/database";
+import type { CourseMaterial } from "@/lib/types/database";
 
 export default async function MaterialsPage() {
   const supabase = await createClient();
 
-  const [{ data: materials }, { data: concepts }] = await Promise.all([
-    supabase
-      .from("course_materials")
-      .select("*")
-      .order("created_at", { ascending: false }),
-    supabase.from("concepts").select("*").order("name"),
-  ]);
+  const { data: materials } = await supabase
+    .from("course_materials")
+    .select("*")
+    .order("created_at", { ascending: false });
 
   return (
     <div className="space-y-6">
@@ -25,7 +22,6 @@ export default async function MaterialsPage() {
 
       <MaterialManager
         initialMaterials={(materials ?? []) as CourseMaterial[]}
-        concepts={(concepts ?? []) as Concept[]}
       />
     </div>
   );

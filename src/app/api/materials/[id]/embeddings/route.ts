@@ -31,8 +31,20 @@ export async function GET(
   });
 }
 
-const BATCH_SIZE = 10;
-const PARALLEL_CALLS = 3;
+const BATCH_SIZE = 5;
+
+/** Detect base64/binary junk */
+function isJunkText(text: string): boolean {
+  const trimmed = text.trim();
+  if (trimmed.length === 0) return true;
+  if (trimmed.length < 50) return false;
+  const spaces = (trimmed.match(/ /g) || []).length;
+  if (trimmed.length > 100 && spaces / trimmed.length < 0.05) return true;
+  const nonReadable = trimmed.replace(/[\x20-\x7E\n\r\t]/g, "").length;
+  if (nonReadable / trimmed.length > 0.3) return true;
+  if (/[A-Za-z0-9+/=]{80,}/.test(trimmed)) return true;
+  return false;
+}
 
 /** POST: embed the next batch of unembedded chunks */
 export async function POST(
@@ -43,84 +55,74 @@ export async function POST(
   const supabase = await createClient();
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 
-  // Fetch a larger set of unembedded chunks to process in parallel
-  const fetchSize = BATCH_SIZE * PARALLEL_CALLS;
   const { data: chunks, error } = await supabase
     .from("course_material_chunks")
-    .select("id, chunk_text, chunk_index")
+    .select("id, chunk_text")
     .eq("material_id", id)
     .is("embedding", null)
     .order("chunk_index")
-    .limit(fetchSize);
+    .limit(BATCH_SIZE);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
   if (!chunks || chunks.length === 0) {
-    return NextResponse.json({ embedded: 0, done: true });
-  }
-
-  // Split into sub-batches and call edge function in parallel
-  const batches: (typeof chunks)[] = [];
-  for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
-    batches.push(chunks.slice(i, i + BATCH_SIZE));
+    return NextResponse.json({ embedded: 0, remaining: 0, done: true });
   }
 
   let embeddedCount = 0;
+  const zeroVector = JSON.stringify(Array(384).fill(0));
 
-  try {
-    const results = await Promise.allSettled(
-      batches.map(async (batch) => {
-        const res = await fetch(`${supabaseUrl}/functions/v1/embed`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ texts: batch.map((c) => c.chunk_text) }),
-        });
+  // Separate junk from valid
+  const junkIds: string[] = [];
+  const valid: typeof chunks = [];
+  for (const c of chunks) {
+    if (isJunkText(c.chunk_text)) junkIds.push(c.id);
+    else valid.push(c);
+  }
 
-        if (!res.ok) return null;
-
-        const { embeddings } = (await res.json()) as {
-          embeddings: number[][];
-        };
-        return { batch, embeddings };
-      })
+  // Mark junk with zero vectors
+  if (junkIds.length > 0) {
+    await Promise.all(
+      junkIds.map((chunkId) =>
+        supabase
+          .from("course_material_chunks")
+          .update({ embedding: zeroVector })
+          .eq("id", chunkId)
+      )
     );
+    embeddedCount += junkIds.length;
+  }
 
-    // Collect all successful updates
-    const updates: { id: string; embedding: string }[] = [];
-    for (const result of results) {
-      if (result.status !== "fulfilled" || !result.value) continue;
-      const { batch, embeddings } = result.value;
-      for (let i = 0; i < batch.length; i++) {
-        if (embeddings[i]) {
-          updates.push({
-            id: batch[i].id,
-            embedding: JSON.stringify(embeddings[i]),
-          });
-        }
+  // Embed valid chunks via the embed edge function
+  if (valid.length > 0) {
+    try {
+      const res = await fetch(`${supabaseUrl}/functions/v1/embed`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ texts: valid.map((c) => c.chunk_text) }),
+      });
+
+      if (res.ok) {
+        const { embeddings } = (await res.json()) as { embeddings: number[][] };
+        const updateResults = await Promise.all(
+          valid.map((chunk, i) => {
+            if (!embeddings[i]) return Promise.resolve(null);
+            return supabase
+              .from("course_material_chunks")
+              .update({ embedding: JSON.stringify(embeddings[i]) })
+              .eq("id", chunk.id);
+          })
+        );
+        embeddedCount += valid.length;
       }
-    }
-
-    // Batch update via parallel DB calls (groups of 10)
-    const DB_BATCH = 10;
-    for (let i = 0; i < updates.length; i += DB_BATCH) {
-      const group = updates.slice(i, i + DB_BATCH);
-      await Promise.all(
-        group.map(({ id: chunkId, embedding }) =>
-          supabase
-            .from("course_material_chunks")
-            .update({ embedding })
-            .eq("id", chunkId)
-        )
+    } catch (err) {
+      return NextResponse.json(
+        { error: `Embedding error: ${(err as Error).message}` },
+        { status: 500 }
       );
-      embeddedCount += group.length;
     }
-  } catch (err) {
-    return NextResponse.json(
-      { error: `Embedding error: ${(err as Error).message}` },
-      { status: 500 }
-    );
   }
 
   // Check remaining

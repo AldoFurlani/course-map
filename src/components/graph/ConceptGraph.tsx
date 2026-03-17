@@ -16,7 +16,7 @@ import type { ConceptNodeData } from "@/lib/graph/layout";
 const nodeTypes = { conceptNode: ConceptNode };
 
 const defaultEdgeOptions = {
-  type: "bezier",
+  type: "default",
   style: {
     stroke: "var(--muted-foreground)",
     strokeWidth: 1.5,

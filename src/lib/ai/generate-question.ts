@@ -1,7 +1,8 @@
 import { generateText, Output } from "ai";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
-import { retrieveChunks, buildContext } from "@/lib/rag/retriever";
+import { retrieveChunks } from "@/lib/rag/retriever";
+import { getConceptEmbedding } from "@/lib/rag/embed";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { model } from "./client";
 import type {
@@ -9,6 +10,7 @@ import type {
   QuestionType,
   Difficulty,
   Concept,
+  MatchedChunk,
 } from "@/lib/types/database";
 
 const mcOptionSchema = z.object({
@@ -28,49 +30,21 @@ const verificationSchema = z.object({
   reasoning: z.string(),
 });
 
-async function embedText(text: string): Promise<number[]> {
-  const res = await fetch(
-    `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/embed`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ texts: [text] }),
-    }
-  );
-
-  if (!res.ok) {
-    throw new Error(`Embedding failed: ${res.statusText}`);
-  }
-
-  const { embeddings } = await res.json();
-  return embeddings[0];
-}
-
 /**
- * Retrieve chunk text for a concept via direct concept_chunks mapping.
- * Returns null if no mappings exist (caller should fall back to semantic RAG).
+ * Build context string from chunks, ordered by source position.
  */
-async function getLinkedChunks(conceptId: string): Promise<string | null> {
-  const supabase = await createClient();
+function buildOrderedContext(chunks: MatchedChunk[]): string {
+  if (chunks.length === 0) return "";
 
-  const { data: links, error } = await supabase
-    .from("concept_chunks")
-    .select("chunk_id")
-    .eq("concept_id", conceptId);
+  // Sort by material then chunk_index so the LLM sees content in reading order
+  const sorted = [...chunks].sort((a, b) => {
+    if (a.material_id !== b.material_id) {
+      return a.material_id.localeCompare(b.material_id);
+    }
+    return a.chunk_index - b.chunk_index;
+  });
 
-  if (error || !links || links.length === 0) return null;
-
-  const chunkIds = links.map((l) => l.chunk_id);
-  const { data: chunks } = await supabase
-    .from("course_material_chunks")
-    .select("chunk_text, chunk_index")
-    .in("id", chunkIds)
-    .order("chunk_index")
-    .limit(6);
-
-  if (!chunks || chunks.length === 0) return null;
-
-  return chunks.map((c) => c.chunk_text).join("\n\n---\n\n");
+  return sorted.map((c) => c.chunk_text).join("\n\n---\n\n");
 }
 
 export async function generateQuestion(
@@ -97,23 +71,19 @@ export async function generateQuestion(
 
   const typedConcept = concept as Concept;
 
-  // Try direct concept-chunk mappings first, fall back to semantic RAG
+  // Semantic search for relevant chunks (uses cached embedding if available)
   let ragContext = "";
-  let usedDirectMapping = false;
+  let retrievedChunks: MatchedChunk[] = [];
+  let usedCachedEmbedding = false;
 
-  const linkedContext = await getLinkedChunks(conceptId);
-  if (linkedContext) {
-    ragContext = linkedContext;
-    usedDirectMapping = true;
-  } else {
-    try {
-      const queryText = `${typedConcept.name}: ${typedConcept.description}`;
-      const embedding = await embedText(queryText);
-      const chunks = await retrieveChunks(embedding, 3, 0.7);
-      ragContext = buildContext(chunks);
-    } catch (err) {
-      console.error("RAG retrieval failed:", err);
-    }
+  try {
+    usedCachedEmbedding = !!typedConcept.cached_embedding;
+    const embedding = await getConceptEmbedding(typedConcept);
+    const rawChunks = await retrieveChunks(embedding, 12, 0.5);
+    retrievedChunks = rawChunks.filter((c) => c.chunk_text.length >= 150).slice(0, 6);
+    ragContext = buildOrderedContext(retrievedChunks);
+  } catch (err) {
+    console.error("Semantic search failed:", err);
   }
 
   // Fetch recent questions for this concept to avoid repetition
@@ -129,18 +99,23 @@ export async function generateQuestion(
 
   const avoidSection =
     recentQuestions && recentQuestions.length > 0
-      ? `\nDo NOT ask about the same topic as any of these previously generated questions. Cover a DIFFERENT subtopic or angle:\n${recentQuestions.map((q, i) => `${i + 1}. ${q.question_text}`).join("\n")}\n`
+      ? `\nDo NOT ask about the same topic as any of these previously generated questions. Cover a DIFFERENT subtopic or angle:\n${recentQuestions.map((q, i) => {
+          // Truncate to first sentence or 150 chars to reduce token usage
+          const text = q.question_text;
+          const firstSentence = text.match(/^[^.!?]*[.!?]/)?.[0];
+          const summary = firstSentence && firstSentence.length > 30
+            ? firstSentence
+            : text.slice(0, 150);
+          return `${i + 1}. ${summary}`;
+        }).join("\n")}\n`
       : "";
 
   // Build prompt
   const typeLabel =
     questionType === "multiple_choice" ? "multiple choice" : "free response";
 
-  // Use a stronger constraint when we have direct mappings
   const contextSection = ragContext
-    ? usedDirectMapping
-      ? `\nThe following is the course material covering this concept. Only ask about topics that are substantively covered in this material — if something is only briefly mentioned or referenced in passing, do not make it the focus of a question. You may use your own examples and scenarios to test the concepts, rather than reusing the specific examples from the material.\n\n${ragContext}\n`
-      : `\nUse the following course material as reference:\n${ragContext}\n`
+    ? `\nThe following is the course material covering this concept. Only ask about topics that are substantively covered in this material — if something is only briefly mentioned or referenced in passing, do not make it the focus of a question. You may use your own examples and scenarios to test the concepts, rather than reusing the specific examples from the material.\n\n${ragContext}\n`
     : "";
 
   const prompt = `You are an ML1 (Machine Learning 1) exam question generator. Generate a ${difficulty} ${typeLabel} question about "${typedConcept.name}".
@@ -153,6 +128,21 @@ IMPORTANT — Math formatting: Use LaTeX notation with dollar-sign delimiters fo
 - Inline: "the gradient $\\nabla f(x)$ at step $t$"
 - Display: "$$\\eta_t = \\frac{1}{1 + \\sum_j |g_{t,j}|}$$"
 Never write bare math symbols like η_t or Σ_j — always wrap them in dollar signs.`;
+
+  // Log the full prompt and retrieval details
+  console.log("\n========== QUESTION GENERATION ==========");
+  console.log(`Concept: ${typedConcept.name} (${conceptId})`);
+  console.log(`Type: ${typeLabel} | Difficulty: ${difficulty}`);
+  console.log(`Embedding: ${usedCachedEmbedding ? "CACHED" : "computed"} | Chunks: ${retrievedChunks.length}`);
+  if (retrievedChunks.length > 0) {
+    retrievedChunks.forEach((c, i) => {
+      console.log(
+        `  Chunk ${i + 1}: similarity=${c.similarity.toFixed(3)} page=${c.page_number ?? "?"} index=${c.chunk_index} (${c.chunk_text.slice(0, 80)}...)`
+      );
+    });
+  }
+  console.log(`\n--- FULL PROMPT ---\n${prompt}`);
+  console.log("==========================================\n");
 
   const { output } = await generateText({
     model,
@@ -183,6 +173,9 @@ Return the letter of the correct answer and your reasoning.`,
     });
 
     if (verification && verification.correct_answer !== output.correct_answer) {
+      console.log(
+        `[VERIFY] Answer corrected: ${output.correct_answer} → ${verification.correct_answer}`
+      );
       output.correct_answer = verification.correct_answer;
       output.explanation = verification.reasoning;
     }

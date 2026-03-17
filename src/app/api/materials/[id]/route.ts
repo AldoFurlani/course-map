@@ -9,14 +9,14 @@ export async function DELETE(
   const supabase = await createClient();
 
   // Get the material to find its file path
-  const { data: material, error: fetchError } = await supabase
+  const { data: material } = await supabase
     .from("course_materials")
     .select("file_path")
     .eq("id", id)
-    .single();
+    .maybeSingle();
 
-  if (fetchError) {
-    return NextResponse.json({ error: fetchError.message }, { status: 400 });
+  if (!material) {
+    return NextResponse.json({ error: "Material not found" }, { status: 404 });
   }
 
   // Delete from storage

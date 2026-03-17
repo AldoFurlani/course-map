@@ -70,35 +70,6 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // Save concept-chunk mappings for all concepts that have source_chunk_ids
-  const chunkMappings: { concept_id: string; chunk_id: string }[] = [];
-  for (const concept of body.concepts) {
-    const conceptId = nameToId.get(concept.name.toLowerCase().trim());
-    if (!conceptId || !concept.source_chunk_ids?.length) continue;
-
-    for (const chunkId of concept.source_chunk_ids) {
-      chunkMappings.push({ concept_id: conceptId, chunk_id: chunkId });
-    }
-  }
-
-  if (chunkMappings.length > 0) {
-    // Delete existing mappings for these concepts so re-generation replaces them
-    const conceptIds = [...new Set(chunkMappings.map((m) => m.concept_id))];
-    await supabase
-      .from("concept_chunks")
-      .delete()
-      .in("concept_id", conceptIds);
-
-    const { error: mappingError } = await supabase
-      .from("concept_chunks")
-      .insert(chunkMappings);
-
-    if (mappingError) {
-      console.error("Failed to save concept-chunk mappings:", mappingError);
-      // Non-fatal: continue even if mappings fail
-    }
-  }
-
   // Fetch existing edges for cycle detection
   const { data: existingEdges } = await supabase
     .from("concept_edges")

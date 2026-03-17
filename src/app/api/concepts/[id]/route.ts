@@ -18,6 +18,11 @@ export async function PUT(
     return NextResponse.json({ error: "No fields to update" }, { status: 400 });
   }
 
+  // Clear cached embedding when name or description changes (different query text)
+  if (body.name !== undefined || body.description !== undefined) {
+    update.cached_embedding = null as unknown as string;
+  }
+
   const { data, error } = await supabase
     .from("concepts")
     .update(update)

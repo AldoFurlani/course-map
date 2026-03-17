@@ -5,24 +5,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
 import { Upload, Trash2, FileText, File, FileCode, Loader2, CheckCircle2 } from "lucide-react";
-import type { CourseMaterial, Concept } from "@/lib/types/database";
+import type { CourseMaterial } from "@/lib/types/database";
 
 interface MaterialManagerProps {
   initialMaterials: CourseMaterial[];
-  concepts: Concept[];
 }
 
 interface EmbeddingStatus {
@@ -41,11 +33,9 @@ const ACCEPTED_EXTENSIONS = ".pdf,.txt,.md,.markdown";
 
 export function MaterialManager({
   initialMaterials,
-  concepts,
 }: MaterialManagerProps) {
   const [materials, setMaterials] = useState(initialMaterials);
   const [title, setTitle] = useState("");
-  const [conceptId, setConceptId] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
@@ -64,20 +54,7 @@ export function MaterialManager({
 
       const processNext = async () => {
         try {
-          // First get current status
-          const statusRes = await fetch(
-            `/api/materials/${materialId}/embeddings`
-          );
-          if (!statusRes.ok) { pollingIds.current.delete(materialId); return; }
-          const status = (await statusRes.json()) as EmbeddingStatus;
-          setEmbeddingStatus((prev) => ({ ...prev, [materialId]: status }));
-
-          if (status.done || status.total === 0) {
-            pollingIds.current.delete(materialId);
-            return;
-          }
-
-          // Process next batch
+          // Embed next batch
           const res = await fetch(
             `/api/materials/${materialId}/embeddings`,
             { method: "POST" }
@@ -92,25 +69,39 @@ export function MaterialManager({
             return;
           }
 
-          // Update status with new counts
-          setEmbeddingStatus((prev) => ({
-            ...prev,
-            [materialId]: {
-              total: status.total,
-              embedded: status.total - result.remaining,
-              done: result.done,
-            },
-          }));
-
-          if (!result.done) {
-            processNext();
-          } else {
+          if (result.done && result.embedded === 0) {
+            // Nothing left to embed — get final status
+            const statusRes = await fetch(
+              `/api/materials/${materialId}/embeddings`
+            );
+            if (statusRes.ok) {
+              const status = (await statusRes.json()) as EmbeddingStatus;
+              setEmbeddingStatus((prev) => ({ ...prev, [materialId]: status }));
+            }
             pollingIds.current.delete(materialId);
+            return;
           }
+
+          // Update progress from GET (more accurate than computing from POST result)
+          const statusRes = await fetch(
+            `/api/materials/${materialId}/embeddings`
+          );
+          if (statusRes.ok) {
+            const status = (await statusRes.json()) as EmbeddingStatus;
+            setEmbeddingStatus((prev) => ({ ...prev, [materialId]: status }));
+
+            if (status.done) {
+              pollingIds.current.delete(materialId);
+              return;
+            }
+          }
+
+          setTimeout(processNext, 50);
         } catch {
           pollingIds.current.delete(materialId);
         }
       };
+
       processNext();
     },
     []
@@ -150,10 +141,6 @@ export function MaterialManager({
     const formData = new FormData();
     formData.append("file", file);
     formData.append("title", title.trim());
-    if (conceptId && conceptId !== "none") {
-      const resolvedId = concepts.find((c) => c.name === conceptId)?.id;
-      if (resolvedId) formData.append("concept_id", resolvedId);
-    }
 
     try {
       const res = await fetch("/api/materials", {
@@ -175,7 +162,6 @@ export function MaterialManager({
       setMaterials((prev) => [data, ...prev]);
       setTitle("");
       setFile(null);
-      setConceptId("");
 
       // Reset file input
       const fileInput = document.getElementById(
@@ -223,33 +209,15 @@ export function MaterialManager({
         </CardHeader>
         <CardContent>
           <form onSubmit={handleUpload} className="space-y-4">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="title">Title</Label>
-                <Input
-                  id="title"
-                  placeholder="e.g. Lecture 3 — Gradient Descent"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="concept">Related Concept (optional)</Label>
-                <Select value={conceptId} onValueChange={(val) => setConceptId(val ?? "")}>
-                  <SelectTrigger id="concept">
-                    <SelectValue placeholder="Select concept..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">None</SelectItem>
-                    {concepts.map((c) => (
-                      <SelectItem key={c.id} value={c.name}>
-                        {c.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="title">Title</Label>
+              <Input
+                id="title"
+                placeholder="e.g. Lecture 3 — Gradient Descent"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                required
+              />
             </div>
 
             <div className="space-y-2">
@@ -293,7 +261,6 @@ export function MaterialManager({
             <div className="space-y-2">
               {materials.map((m) => {
                 const Icon = FILE_TYPE_ICONS[m.file_type];
-                const concept = concepts.find((c) => c.id === m.concept_id);
                 const status = embeddingStatus[m.id];
                 return (
                   <div
@@ -306,11 +273,6 @@ export function MaterialManager({
                         <p className="text-sm font-medium">{m.title}</p>
                         <p className="text-xs text-muted-foreground">
                           {m.file_name}
-                          {concept && (
-                            <span className="ml-2 rounded bg-muted px-1.5 py-0.5">
-                              {concept.name}
-                            </span>
-                          )}
                         </p>
                         {status && !status.done && status.total > 0 && (
                           <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">

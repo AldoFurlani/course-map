@@ -2,6 +2,7 @@ export interface Concept {
   id: string;
   name: string;
   description: string;
+  cached_embedding: number[] | null;
   created_at: string;
   updated_at: string;
 }
@@ -33,15 +34,6 @@ export interface ConceptGraphData {
   edges: ConceptEdge[];
 }
 
-// Concept-to-chunk mapping (for grounded question generation)
-
-export interface ConceptChunk {
-  id: string;
-  concept_id: string;
-  chunk_id: string;
-  created_at: string;
-}
-
 // Auto-generated concept graph
 
 export interface GeneratedConcept {
@@ -66,7 +58,6 @@ export interface GeneratedGraphPreview {
 
 export interface CourseMaterial {
   id: string;
-  concept_id: string | null;
   title: string;
   file_name: string;
   file_type: "pdf" | "text" | "markdown";
@@ -90,6 +81,7 @@ export interface MatchedChunk {
   material_id: string;
   chunk_text: string;
   chunk_index: number;
+  page_number: number | null;
   similarity: number;
 }
 

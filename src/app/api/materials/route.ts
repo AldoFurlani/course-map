@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { chunkText, stripMarkdown } from "@/lib/rag/chunker";
+import { chunkText, chunkPdfPages, stripMarkdown } from "@/lib/rag/chunker";
 
 export async function GET() {
   const supabase = await createClient();
@@ -30,7 +30,6 @@ export async function POST(request: NextRequest) {
   const formData = await request.formData();
   const file = formData.get("file") as File | null;
   const title = formData.get("title") as string | null;
-  const conceptId = formData.get("concept_id") as string | null;
 
   if (!file || !title?.trim()) {
     return NextResponse.json(
@@ -70,7 +69,6 @@ export async function POST(request: NextRequest) {
       file_type: fileType,
       file_path: filePath,
       uploaded_by: user.id,
-      concept_id: conceptId || null,
     })
     .select()
     .single();
@@ -82,7 +80,7 @@ export async function POST(request: NextRequest) {
   }
 
   // Extract text content from the already-read buffer
-  let textContent: string;
+  let textContent: string | string[];
   try {
     textContent = await extractText(fileBuffer, fileType);
   } catch (err) {
@@ -92,11 +90,10 @@ export async function POST(request: NextRequest) {
     }, { status: 201 });
   }
 
-  // Strip null bytes and other characters Postgres text columns reject
-  const sanitized = textContent.replace(/\0/g, "");
-
-  // Chunk the text
-  const chunks = chunkText(sanitized);
+  // Chunk the text (page-aware for PDFs, flat for text/markdown)
+  const chunks = Array.isArray(textContent)
+    ? chunkPdfPages(textContent.map((p) => p.replace(/\0/g, "")))
+    : chunkText(textContent.replace(/\0/g, ""));
 
   if (chunks.length === 0) {
     return NextResponse.json(material, { status: 201 });
@@ -107,17 +104,20 @@ export async function POST(request: NextRequest) {
     material_id: material.id,
     chunk_text: c.text,
     chunk_index: c.index,
+    page_number: c.pageNumber,
   }));
   const { error: chunkError } = await supabase
     .from("course_material_chunks")
     .insert(chunkRows);
 
   if (chunkError) {
+    console.error("Chunk insert failed:", chunkError);
     return NextResponse.json({
       ...material,
       warning: `File saved but chunking failed: ${chunkError.message}`,
     }, { status: 201 });
   }
+
 
   return NextResponse.json({
     ...material,
@@ -128,11 +128,12 @@ export async function POST(request: NextRequest) {
 async function extractText(
   buffer: Buffer,
   fileType: "pdf" | "text" | "markdown"
-): Promise<string> {
+): Promise<string | string[]> {
   if (fileType === "pdf") {
     const { extractText: extractPdf } = await import("unpdf");
-    const { text } = await extractPdf(new Uint8Array(buffer));
-    return text.join("\n");
+    // mergePages: false returns one string per page for page tracking
+    const { text } = await extractPdf(new Uint8Array(buffer), { mergePages: false });
+    return text as string[];
   }
 
   const raw = buffer.toString("utf-8");
