@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Map, GraduationCap, BookOpen } from "lucide-react";
 
 export default function SignupPage() {
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [role, setRole] = useState<"student" | "professor">("student");
@@ -25,7 +25,7 @@ export default function SignupPage() {
 
     const supabase = createClient();
     const { error } = await supabase.auth.signUp({
-      email,
+      email: `${username.toLowerCase().trim()}@coursemap.local`,
       password,
       options: {
         data: {
@@ -114,13 +114,13 @@ export default function SignupPage() {
               />
             </div>
             <div className="space-y-2 auth-field-enter" style={{ animationDelay: "180ms" }}>
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="username">Username</Label>
               <Input
-                id="email"
-                type="email"
-                placeholder="you@email.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                id="username"
+                type="text"
+                placeholder="Your Username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
                 required
               />
             </div>
