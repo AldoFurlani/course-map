@@ -16,16 +16,19 @@ import type { ConceptNodeData } from "@/lib/graph/layout";
 const nodeTypes = { conceptNode: ConceptNode };
 
 const defaultEdgeOptions = {
-  type: "smoothstep",
+  type: "bezier",
   style: {
-    stroke: "var(--border)",
+    stroke: "var(--muted-foreground)",
     strokeWidth: 1.5,
+    opacity: 0.35,
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
   },
   markerEnd: {
-    type: "arrowclosed" as const,
-    color: "var(--border)",
-    width: 16,
-    height: 16,
+    type: "arrow" as const,
+    color: "var(--muted-foreground)",
+    width: 12,
+    height: 12,
   },
 };
 
@@ -34,8 +37,8 @@ interface ConceptGraphProps {
   edges: Edge[];
   interactive?: boolean;
   onConceptClick?: (conceptName: string) => void;
+  onNodeHover?: (nodeId: string | null) => void;
   className?: string;
-  /** When true, renders without border/rounding for full-bleed use */
   fullBleed?: boolean;
 }
 
@@ -44,6 +47,7 @@ export function ConceptGraph({
   edges,
   interactive = false,
   onConceptClick,
+  onNodeHover,
   className,
   fullBleed = false,
 }: ConceptGraphProps) {
@@ -54,10 +58,24 @@ export function ConceptGraph({
     [onConceptClick]
   );
 
+  const handleNodeMouseEnter: NodeMouseHandler<Node<ConceptNodeData>> = useCallback(
+    (_event, node) => {
+      onNodeHover?.(node.id);
+    },
+    [onNodeHover]
+  );
+
+  const handleNodeMouseLeave: NodeMouseHandler<Node<ConceptNodeData>> = useCallback(
+    () => {
+      onNodeHover?.(null);
+    },
+    [onNodeHover]
+  );
+
   return (
     <div
       className={`h-full w-full ${
-        fullBleed ? "bg-background" : "rounded-lg border bg-card"
+        fullBleed ? "" : "rounded-lg border bg-card"
       } ${className ?? ""}`}
     >
       <ReactFlow
@@ -69,6 +87,8 @@ export function ConceptGraph({
         nodesConnectable={false}
         elementsSelectable={interactive || !!onConceptClick}
         onNodeClick={onConceptClick ? handleNodeClick : undefined}
+        onNodeMouseEnter={onNodeHover ? handleNodeMouseEnter : undefined}
+        onNodeMouseLeave={onNodeHover ? handleNodeMouseLeave : undefined}
         fitView
         fitViewOptions={{ padding: 0.15 }}
         minZoom={0.2}
@@ -76,14 +96,13 @@ export function ConceptGraph({
         proOptions={{ hideAttribution: true }}
       >
         <Background
-          gap={24}
-          size={1}
+          gap={20}
+          size={0.8}
           color="var(--border)"
         />
         <Controls
           showInteractive={false}
-          position="top-left"
-          className="!rounded-xl !border !border-border/40 !bg-card/70 !shadow-lg !backdrop-blur-2xl !ring-1 !ring-white/[0.05] [&>button]:!border-border/30 [&>button]:!bg-transparent [&>button]:!fill-muted-foreground hover:[&>button]:!bg-muted/50 hover:[&>button]:!fill-foreground"
+          position="bottom-left"
         />
       </ReactFlow>
     </div>

@@ -50,8 +50,8 @@ export default async function DashboardPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold">Class Dashboard</h1>
-      <p className="mt-2 mb-6 text-muted-foreground">
+      <h1 className="font-serif text-3xl font-semibold tracking-tight">Class Dashboard</h1>
+      <p className="mt-2 mb-6 text-sm text-muted-foreground">
         View aggregate readiness scores and identify concepts that need review.
       </p>
       <ClassDashboard

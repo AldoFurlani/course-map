@@ -32,7 +32,8 @@ Correct answer: ${question.correct_answer}
 Student's answer: ${studentAnswer}
 The student was ${isCorrect ? "CORRECT" : "INCORRECT"}.
 
-Provide 2-3 sentences of feedback explaining why the correct answer is right${!isCorrect ? " and why the student's choice was wrong" : ""}. Be encouraging and educational.`,
+Provide 2-3 sentences of feedback explaining why the correct answer is right${!isCorrect ? " and why the student's choice was wrong" : ""}. Be encouraging and educational.
+Use LaTeX notation with $...$ for inline math and $$...$$ for display math in your feedback.`,
     });
 
     if (!output) {
@@ -55,7 +56,8 @@ Student's answer: ${studentAnswer}
 
 Evaluate the student's answer. Consider partial correctness — if the student demonstrates understanding of the core concepts but misses details, that can still be considered correct.
 
-Provide 2-4 sentences of feedback explaining what was right/wrong and teaching the concept.`,
+Provide 2-4 sentences of feedback explaining what was right/wrong and teaching the concept.
+Use LaTeX notation with $...$ for inline math and $$...$$ for display math in your feedback.`,
   });
 
   if (!output) {

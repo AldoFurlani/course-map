@@ -17,7 +17,14 @@ import {
   XCircle,
   ChevronDown,
   ChevronUp,
+  Send,
+  RotateCcw,
+  ArrowRight,
+  FileUp,
+  FileText,
+  X,
 } from "lucide-react";
+import MathText from "@/components/ui/math-text";
 import type {
   Concept,
   Question,
@@ -79,6 +86,8 @@ export default function PracticeSession({ concepts, initialConcept }: Props) {
   }, []);
   const [question, setQuestion] = useState<Question | null>(null);
   const [answer, setAnswer] = useState("");
+  const [pdfFile, setPdfFile] = useState<File | null>(null);
+  const [pdfParsing, setPdfParsing] = useState(false);
   const [feedbackData, setFeedbackData] = useState<FeedbackData | null>(null);
   const [readiness, setReadiness] = useState<ReadinessScore | null>(null);
   const [error, setError] = useState("");
@@ -204,9 +213,44 @@ export default function PracticeSession({ concepts, initialConcept }: Props) {
     }
   }
 
+  async function handlePdfUpload(file: File) {
+    setPdfFile(file);
+    setPdfParsing(true);
+    setError("");
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await fetch("/api/parse-pdf", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to parse PDF");
+      }
+
+      const { text } = await res.json();
+      setAnswer(text);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to parse PDF");
+      setPdfFile(null);
+    } finally {
+      setPdfParsing(false);
+    }
+  }
+
+  function handleRemovePdf() {
+    setPdfFile(null);
+    setAnswer("");
+  }
+
   function handlePracticeAnother() {
     setQuestion(null);
     setAnswer("");
+    setPdfFile(null);
     setFeedbackData(null);
     setReadiness(null);
     setError("");
@@ -217,6 +261,7 @@ export default function PracticeSession({ concepts, initialConcept }: Props) {
     // Same concept, generate another question
     setQuestion(null);
     setAnswer("");
+    setPdfFile(null);
     setFeedbackData(null);
     setReadiness(null);
     setError("");
@@ -225,402 +270,569 @@ export default function PracticeSession({ concepts, initialConcept }: Props) {
 
   const conceptName = conceptId || "Unknown";
 
+  const selfAssessLabels = [
+    { value: 1, label: "Lost", desc: "I don\u2019t understand this at all" },
+    { value: 2, label: "Shaky", desc: "I have a vague idea" },
+    { value: 3, label: "Getting there", desc: "I understand the basics" },
+    { value: 4, label: "Solid", desc: "I could explain this to someone" },
+    { value: 5, label: "Confident", desc: "I fully understand this" },
+  ];
+
+  const readinessPercent = readiness
+    ? Math.round(readiness.raw_score * 100)
+    : 0;
+  const readinessColor =
+    readinessPercent >= 70
+      ? "bg-success"
+      : readinessPercent >= 40
+        ? "bg-warning"
+        : "bg-destructive";
+
   return (
-    <div className="max-w-2xl space-y-6">
-      {/* Mode Toggle */}
+    <div className="mx-auto max-w-3xl space-y-8">
+      {/* ─── SELECT STATE: Setup / Bank ─── */}
       {state === "select" && (
-        <div className="flex gap-2">
-          <Button
-            variant={mode === "generate" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setMode("generate")}
-          >
-            Generate
-          </Button>
-          <Button
-            variant={mode === "bank" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setMode("bank")}
-          >
-            Question Bank
-          </Button>
+        <>
+          {/* Header — contextual, not generic */}
+          <div className="space-y-2 text-center pt-4">
+            <h1 className="font-serif text-3xl font-semibold tracking-tight">
+              {mode === "generate" ? "Generate a Question" : "Question Bank"}
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              {mode === "generate"
+                ? "Use AI-generated questions to practice"
+                : "Browse professor-curated questions to practice"}
+            </p>
+          </div>
+
+          {/* Mode Toggle — centered */}
+          <div className="flex justify-center gap-2">
+            <Button
+              variant={mode === "generate" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setMode("generate")}
+            >
+              Generate
+            </Button>
+            <Button
+              variant={mode === "bank" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setMode("bank")}
+            >
+              Question Bank
+            </Button>
+          </div>
+
+          {/* Generate Mode — Configuration */}
+          {mode === "generate" && (
+            <Card>
+              <CardContent className="pt-8 pb-8 space-y-6">
+                {/* Concept selector — centered, wide */}
+                <div className="mx-auto max-w-md space-y-2">
+                  <Label className="text-sm font-medium block text-center">Concept</Label>
+                  <Select
+                    value={conceptId}
+                    onValueChange={(val) => setConceptId(val ?? "")}
+                  >
+                    <SelectTrigger className="!w-full !h-14 text-base px-4">
+                      <SelectValue placeholder="Select a concept..." />
+                    </SelectTrigger>
+                    <SelectContent className="min-w-[28rem]" alignItemWithTrigger={false}>
+                      {concepts.map((c) => (
+                        <SelectItem key={c.id} value={c.name} className="text-base py-2.5">
+                          {c.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Type + Difficulty — centered, stacked */}
+                <div className="mx-auto max-w-md space-y-6">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium block text-center">Question Type</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        className={`rounded-xl border px-4 py-3.5 text-center text-sm font-medium transition-all ${
+                          questionType === "multiple_choice"
+                            ? "border-primary bg-primary/5 ring-1 ring-primary/20"
+                            : "border-border/60 hover:border-border hover:bg-muted/30"
+                        }`}
+                        onClick={() => setQuestionType("multiple_choice")}
+                      >
+                        Multiple Choice
+                      </button>
+                      <button
+                        className={`rounded-xl border px-4 py-3.5 text-center text-sm font-medium transition-all ${
+                          questionType === "free_response"
+                            ? "border-primary bg-primary/5 ring-1 ring-primary/20"
+                            : "border-border/60 hover:border-border hover:bg-muted/30"
+                        }`}
+                        onClick={() => setQuestionType("free_response")}
+                      >
+                        Free Response
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium block text-center">Difficulty</Label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {(["easy", "medium", "hard"] as Difficulty[]).map((d) => (
+                        <button
+                          key={d}
+                          className={`rounded-xl border py-3.5 text-center text-sm font-medium capitalize transition-all ${
+                            difficulty === d
+                              ? "border-primary bg-primary/5 ring-1 ring-primary/20"
+                              : "border-border/60 hover:border-border hover:bg-muted/30"
+                          }`}
+                          onClick={() => setDifficulty(d)}
+                        >
+                          {d}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {error && <p className="text-center text-sm text-destructive">{error}</p>}
+
+                <div className="mx-auto max-w-md">
+                  <Button
+                    className="w-full h-14 text-base"
+                    onClick={handleGenerate}
+                    disabled={!conceptId}
+                  >
+                    Generate Question
+                    <ArrowRight className="ml-2 size-4" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Question Bank Mode */}
+          {mode === "bank" && (
+            <Card>
+              <CardContent className="pt-8 pb-8 space-y-5">
+                <div className="mx-auto max-w-md space-y-2">
+                  <Label className="text-sm font-medium block text-center">Filter by Concept</Label>
+                  <Select
+                    value={bankConceptId}
+                    onValueChange={(val) => setBankConceptId(val ?? "all")}
+                  >
+                    <SelectTrigger className="!w-full !h-14 text-base px-4">
+                      <SelectValue placeholder="All concepts" />
+                    </SelectTrigger>
+                    <SelectContent className="min-w-[28rem]" alignItemWithTrigger={false}>
+                      <SelectItem value="all" className="text-base py-2.5">All concepts</SelectItem>
+                      {concepts.map((c) => (
+                        <SelectItem key={c.id} value={c.name} className="text-base py-2.5">
+                          {c.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {loadingBank ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 className="mr-2 size-5 animate-spin text-primary" />
+                    <span>Loading questions...</span>
+                  </div>
+                ) : curatedQuestions.length === 0 ? (
+                  <p className="py-8 text-center text-sm text-muted-foreground">
+                    No curated questions available yet.
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    <p className="text-sm text-muted-foreground">
+                      {curatedQuestions.length} question
+                      {curatedQuestions.length !== 1 ? "s" : ""}
+                    </p>
+                    {curatedQuestions.map((q) => {
+                      const isExpanded = bankExpandedId === q.id;
+                      return (
+                        <div
+                          key={q.id}
+                          className={`rounded-xl border text-sm ${
+                            q.answered
+                              ? "border-success/30 bg-success/5"
+                              : ""
+                          }`}
+                        >
+                          <button
+                            className="flex w-full items-center justify-between px-4 py-3.5 text-left"
+                            onClick={() =>
+                              setBankExpandedId(isExpanded ? null : q.id)
+                            }
+                          >
+                            <div className="flex items-center gap-2">
+                              {q.answered && (
+                                <CheckCircle2 className="size-4 text-success" />
+                              )}
+                              <span className="font-medium">
+                                {q.concepts?.name ?? "Unknown"}
+                              </span>
+                              <span className="text-muted-foreground">
+                                &middot; {q.difficulty} &middot;{" "}
+                                {q.question_type === "multiple_choice"
+                                  ? "MC"
+                                  : "Free Response"}
+                              </span>
+                            </div>
+                            {isExpanded ? (
+                              <ChevronUp className="size-4" />
+                            ) : (
+                              <ChevronDown className="size-4" />
+                            )}
+                          </button>
+                          {isExpanded && (
+                            <div className="border-t px-4 py-4 space-y-3">
+                              <p className="leading-relaxed">
+                                <MathText text={q.question_text} />
+                              </p>
+                              <Button onClick={() => handleStartCurated(q)}>
+                                {q.answered ? "Try Again" : "Answer This Question"}
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+        </>
+      )}
+
+      {/* ─── GENERATING ─── */}
+      {state === "generating" && (
+        <div className="flex flex-col items-center justify-center gap-4 py-24">
+          <Loader2 className="size-8 animate-spin text-primary" />
+          <div className="text-center">
+            <p className="font-serif text-xl font-semibold tracking-tight">
+              Generating question&hellip;
+            </p>
+            <p className="mt-1 text-sm text-muted-foreground">{conceptName}</p>
+          </div>
         </div>
       )}
 
-      {/* Generate Mode — Selection / Configuration */}
-      {state === "select" && mode === "generate" && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Practice Setup</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label>Concept</Label>
-              <Select
-                value={conceptId}
-                onValueChange={(val) => setConceptId(val ?? "")}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a concept..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {concepts.map((c) => (
-                    <SelectItem key={c.id} value={c.name}>
-                      {c.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+      {/* ─── ANSWERING ─── */}
+      {state === "answering" && question && (
+        <div className="space-y-6">
+          {/* Question */}
+          <div className="space-y-4 pt-4">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <span className="rounded-md bg-secondary px-2.5 py-1 font-medium text-secondary-foreground">
+                {conceptName}
+              </span>
+              <span>&middot;</span>
+              <span className="capitalize">{question.difficulty}</span>
+              <span>&middot;</span>
+              <span>
+                {question.question_type === "multiple_choice"
+                  ? "Multiple Choice"
+                  : "Free Response"}
+              </span>
             </div>
 
-            <div className="space-y-2">
-              <Label>Question Type</Label>
-              <div className="flex gap-2">
-                <Button
-                  variant={
-                    questionType === "multiple_choice" ? "default" : "outline"
-                  }
-                  size="sm"
-                  onClick={() => setQuestionType("multiple_choice")}
-                >
-                  Multiple Choice
-                </Button>
-                <Button
-                  variant={
-                    questionType === "free_response" ? "default" : "outline"
-                  }
-                  size="sm"
-                  onClick={() => setQuestionType("free_response")}
-                >
-                  Free Response
-                </Button>
-              </div>
+            <div className="text-base leading-[1.8] sm:text-[17px]">
+              <MathText text={question.question_text} />
             </div>
+          </div>
 
-            <div className="space-y-2">
-              <Label>Difficulty</Label>
-              <div className="flex gap-2">
-                {(["easy", "medium", "hard"] as Difficulty[]).map((d) => (
-                  <Button
-                    key={d}
-                    variant={difficulty === d ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setDifficulty(d)}
-                  >
-                    {d.charAt(0).toUpperCase() + d.slice(1)}
-                  </Button>
-                ))}
-              </div>
-            </div>
-
-            {error && <p className="text-sm text-destructive">{error}</p>}
-
-            <Button onClick={handleGenerate} disabled={!conceptId}>
-              Generate Question
-            </Button>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Question Bank Mode */}
-      {state === "select" && mode === "bank" && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Curated Questions</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label>Filter by Concept</Label>
-              <Select
-                value={bankConceptId}
-                onValueChange={(val) => setBankConceptId(val ?? "all")}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="All concepts" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All concepts</SelectItem>
-                  {concepts.map((c) => (
-                    <SelectItem key={c.id} value={c.name}>
-                      {c.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {loadingBank ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                <span>Loading questions...</span>
-              </div>
-            ) : curatedQuestions.length === 0 ? (
-              <p className="py-4 text-center text-sm text-muted-foreground">
-                No curated questions available yet.
-              </p>
-            ) : (
-              <div className="space-y-2">
-                <p className="text-sm text-muted-foreground">
-                  {curatedQuestions.length} question
-                  {curatedQuestions.length !== 1 ? "s" : ""}
-                </p>
-                {curatedQuestions.map((q) => {
-                  const isExpanded = bankExpandedId === q.id;
-                  return (
-                    <div
-                      key={q.id}
-                      className={`rounded-lg border text-sm ${
-                        q.answered
-                          ? "border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950/30"
-                          : ""
-                      }`}
-                    >
-                      <button
-                        className="flex w-full items-center justify-between px-3 py-2.5 text-left"
-                        onClick={() =>
-                          setBankExpandedId(isExpanded ? null : q.id)
-                        }
-                      >
-                        <div className="flex items-center gap-2">
-                          {q.answered && (
-                            <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />
-                          )}
-                          <span className="font-medium">
-                            {q.concepts?.name ?? "Unknown"}
-                          </span>
-                          <span className="text-muted-foreground">
-                            &middot; {q.difficulty} &middot;{" "}
-                            {q.question_type === "multiple_choice"
-                              ? "MC"
-                              : "Free Response"}
-                          </span>
-                        </div>
-                        {isExpanded ? (
-                          <ChevronUp className="h-4 w-4" />
-                        ) : (
-                          <ChevronDown className="h-4 w-4" />
-                        )}
-                      </button>
-                      {isExpanded && (
-                        <div className="border-t px-3 py-3 space-y-3">
-                          <p>{q.question_text}</p>
-                          <Button
-                            size="sm"
-                            onClick={() => handleStartCurated(q)}
+          {/* Answer area — generous sizing */}
+          <Card>
+            <CardContent className="pt-8 pb-8 space-y-5">
+              {question.question_type === "multiple_choice" &&
+                question.options && (
+                  <div className="space-y-3">
+                    {(question.options as MCOption[]).map((opt) => {
+                      const isSelected = answer === opt.label;
+                      return (
+                        <button
+                          key={opt.label}
+                          className={`group flex w-full items-start gap-4 rounded-xl border px-5 py-4 text-left transition-all ${
+                            isSelected
+                              ? "border-primary bg-primary/5 ring-1 ring-primary/20"
+                              : "border-border/60 hover:border-border hover:bg-muted/30"
+                          }`}
+                          onClick={() => setAnswer(opt.label)}
+                        >
+                          <span
+                            className={`mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full border text-sm font-medium transition-colors ${
+                              isSelected
+                                ? "border-primary bg-primary text-primary-foreground"
+                                : "border-border text-muted-foreground group-hover:border-foreground/30"
+                            }`}
                           >
-                            {q.answered ? "Try Again" : "Answer"}
-                          </Button>
-                        </div>
+                            {opt.label}
+                          </span>
+                          <span className="text-[15px] leading-relaxed pt-0.5">
+                            <MathText text={opt.text} />
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
+              {question.question_type === "free_response" && (
+                <div className="space-y-3">
+                  <textarea
+                    className="min-h-[16rem] w-full resize-y rounded-xl border border-input bg-transparent px-5 py-4 text-[15px] leading-relaxed placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-ring"
+                    placeholder="Write your answer here or upload a PDF..."
+                    value={answer}
+                    onChange={(e) => {
+                      setAnswer(e.target.value);
+                      if (pdfFile) setPdfFile(null);
+                    }}
+                    autoFocus
+                  />
+
+                  {/* PDF upload */}
+                  {pdfFile ? (
+                    <div className="flex items-center gap-3 rounded-xl border border-border/60 px-4 py-3">
+                      <FileText className="size-5 shrink-0 text-primary" />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium">
+                          {pdfFile.name}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {pdfParsing
+                            ? "Extracting text..."
+                            : `${answer.length.toLocaleString()} characters extracted`}
+                        </p>
+                      </div>
+                      {pdfParsing ? (
+                        <Loader2 className="size-4 animate-spin text-muted-foreground" />
+                      ) : (
+                        <button
+                          onClick={handleRemovePdf}
+                          className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                        >
+                          <X className="size-4" />
+                        </button>
                       )}
                     </div>
-                  );
-                })}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Generating */}
-      {state === "generating" && (
-        <Card>
-          <CardContent className="flex items-center justify-center py-12">
-            <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-            <span>Generating question about {conceptName}...</span>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Answering */}
-      {state === "answering" && question && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">{conceptName}</CardTitle>
-            <p className="text-xs text-muted-foreground">
-              {question.difficulty} &middot;{" "}
-              {question.question_type === "multiple_choice"
-                ? "Multiple Choice"
-                : "Free Response"}
-            </p>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="font-medium">{question.question_text}</p>
-
-            {question.question_type === "multiple_choice" &&
-              question.options && (
-                <div className="space-y-2">
-                  {(question.options as MCOption[]).map((opt) => (
-                    <button
-                      key={opt.label}
-                      className={`flex w-full items-start gap-3 rounded-lg border p-3 text-left text-sm transition-colors ${
-                        answer === opt.label
-                          ? "border-primary bg-primary/5"
-                          : "hover:bg-muted/50"
-                      }`}
-                      onClick={() => setAnswer(opt.label)}
-                    >
-                      <span className="font-semibold">{opt.label}.</span>
-                      <span>{opt.text}</span>
-                    </button>
-                  ))}
+                  ) : (
+                    <label className="group flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-border/60 px-4 py-3 text-sm text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground">
+                      <FileUp className="size-4" />
+                      <span>Upload PDF answer</span>
+                      <input
+                        type="file"
+                        accept="application/pdf"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) handlePdfUpload(file);
+                          e.target.value = "";
+                        }}
+                      />
+                    </label>
+                  )}
                 </div>
               )}
 
-            {question.question_type === "free_response" && (
-              <textarea
-                className="h-32 w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                placeholder="Type your answer..."
-                value={answer}
-                onChange={(e) => setAnswer(e.target.value)}
-              />
-            )}
+              {error && <p className="text-sm text-destructive">{error}</p>}
 
-            {error && <p className="text-sm text-destructive">{error}</p>}
-
-            <Button
-              onClick={handleSubmitAnswer}
-              disabled={!answer.trim()}
-            >
-              Submit Answer
-            </Button>
-          </CardContent>
-        </Card>
+              <Button
+                className="w-full h-12 text-base"
+                onClick={handleSubmitAnswer}
+                disabled={!answer.trim()}
+              >
+                <Send className="mr-2 size-4" />
+                Submit Answer
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
       )}
 
-      {/* Evaluating */}
+      {/* ─── EVALUATING ─── */}
       {state === "evaluating" && (
-        <Card>
-          <CardContent className="flex items-center justify-center py-12">
-            <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-            <span>Evaluating your answer...</span>
-          </CardContent>
-        </Card>
+        <div className="flex flex-col items-center justify-center gap-4 py-24">
+          <Loader2 className="size-8 animate-spin text-primary" />
+          <p className="font-serif text-xl font-semibold tracking-tight">
+            Evaluating your answer&hellip;
+          </p>
+        </div>
       )}
 
-      {/* Feedback */}
+      {/* ─── FEEDBACK + SELF-ASSESSMENT ─── */}
       {state === "feedback" && feedbackData && question && (
-        <Card
-          className={
-            feedbackData.is_correct
-              ? "ring-green-500/30 ring-2"
-              : "ring-red-500/30 ring-2"
-          }
-        >
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-lg">
+        <div className="space-y-6">
+          {/* Result banner — centered, prominent */}
+          <div className="flex flex-col items-center gap-3 pt-4">
+            <div
+              className={`flex size-14 items-center justify-center rounded-full ${
+                feedbackData.is_correct
+                  ? "bg-success/10 text-success"
+                  : "bg-destructive/10 text-destructive"
+              }`}
+            >
               {feedbackData.is_correct ? (
-                <>
-                  <CheckCircle2 className="h-5 w-5 text-green-600" />
-                  Correct!
-                </>
+                <CheckCircle2 className="size-7" />
               ) : (
-                <>
-                  <XCircle className="h-5 w-5 text-red-600" />
-                  Incorrect
-                </>
+                <XCircle className="size-7" />
               )}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">
-                Your answer
+            </div>
+            <div className="text-center">
+              <p className="font-serif text-2xl font-semibold tracking-tight">
+                {feedbackData.is_correct ? "Correct!" : "Not quite right"}
               </p>
-              <p className="text-sm">
-                {question.question_type === "multiple_choice"
-                  ? `${answer}. ${(question.options as MCOption[])?.find((o) => o.label === answer)?.text ?? ""}`
-                  : answer}
+              <p className="mt-0.5 text-sm text-muted-foreground">
+                {conceptName} &middot;{" "}
+                <span className="capitalize">{question.difficulty}</span>
               </p>
             </div>
+          </div>
 
-            {!feedbackData.is_correct && (
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">
-                  Correct answer
+          {/* Answer comparison + Explanation */}
+          <Card>
+            <CardContent className="pt-8 pb-8 space-y-0 divide-y divide-border">
+              {/* Your answer */}
+              <div className="pb-5">
+                <p className="mb-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                  Your answer
                 </p>
-                <p className="text-sm">
+                <div className="text-[15px] leading-relaxed">
                   {question.question_type === "multiple_choice"
-                    ? `${feedbackData.correct_answer}. ${(question.options as MCOption[])?.find((o) => o.label === feedbackData.correct_answer)?.text ?? ""}`
-                    : feedbackData.correct_answer}
+                    ? <><span className="font-medium">{answer}.</span> <MathText text={(question.options as MCOption[])?.find((o) => o.label === answer)?.text ?? ""} /></>
+                    : <MathText text={answer} />}
+                </div>
+              </div>
+
+              {/* Correct answer (when wrong) */}
+              {!feedbackData.is_correct && (
+                <div className="py-5">
+                  <p className="mb-2 text-xs font-medium tracking-wide text-success uppercase">
+                    Correct answer
+                  </p>
+                  <div className="text-[15px] leading-relaxed">
+                    {question.question_type === "multiple_choice"
+                      ? <><span className="font-medium">{feedbackData.correct_answer}.</span> <MathText text={(question.options as MCOption[])?.find((o) => o.label === feedbackData.correct_answer)?.text ?? ""} /></>
+                      : <MathText text={feedbackData.correct_answer} />}
+                  </div>
+                </div>
+              )}
+
+              {/* Feedback */}
+              <div className="py-5">
+                <p className="mb-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                  Feedback
+                </p>
+                <div className="text-[15px] leading-relaxed">
+                  <MathText text={feedbackData.feedback} />
+                </div>
+              </div>
+
+              {/* Explanation */}
+              <div className="pt-5">
+                <p className="mb-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                  Explanation
+                </p>
+                <div className="text-[15px] leading-relaxed">
+                  <MathText text={feedbackData.explanation} />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Self-assessment */}
+          <Card>
+            <CardContent className="pt-8 pb-8 space-y-5">
+              <div className="text-center">
+                <p className="font-serif text-xl font-semibold tracking-tight">
+                  How well do you understand this now?
+                </p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Your self-assessment helps calibrate your readiness score
                 </p>
               </div>
-            )}
 
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">
-                Feedback
-              </p>
-              <p className="text-sm">{feedbackData.feedback}</p>
-            </div>
-
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">
-                Explanation
-              </p>
-              <p className="text-sm">{feedbackData.explanation}</p>
-            </div>
-
-            <div className="border-t pt-4">
-              <p className="mb-2 text-sm font-medium">
-                How well do you understand this concept now?
-              </p>
-              <div className="flex gap-2">
-                {[1, 2, 3, 4, 5].map((n) => (
-                  <Button
-                    key={n}
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleSelfAssess(n)}
+              <div className="grid grid-cols-5 gap-2.5">
+                {selfAssessLabels.map(({ value, label, desc }) => (
+                  <button
+                    key={value}
+                    onClick={() => handleSelfAssess(value)}
+                    className="group flex flex-col items-center gap-2 rounded-xl border border-border/60 px-2 py-4 text-center transition-all hover:border-primary/40 hover:bg-primary/5"
                   >
-                    {n}
-                  </Button>
+                    <span className="text-2xl font-semibold font-mono text-foreground group-hover:text-primary transition-colors">
+                      {value}
+                    </span>
+                    <span className="text-xs font-medium leading-tight">
+                      {label}
+                    </span>
+                    <span className="hidden text-[10px] leading-tight text-muted-foreground sm:block">
+                      {desc}
+                    </span>
+                  </button>
                 ))}
               </div>
-              <p className="mt-1 text-xs text-muted-foreground">
-                1 = Not at all &mdash; 5 = Very well
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </div>
       )}
 
-      {/* Self-assessment submitted */}
+      {/* ─── READINESS RESULT ─── */}
       {state === "self_assess" && (
-        <Card>
-          <CardContent className="space-y-4 py-6">
-            {readiness ? (
-              <>
-                <div className="text-center">
-                  <p className="text-sm text-muted-foreground">
-                    Readiness for {conceptName}
-                  </p>
-                  <p className="text-3xl font-bold">
-                    {Math.round(readiness.raw_score * 100)}%
-                  </p>
-                  <p className="text-xs text-muted-foreground">
+        <div className="space-y-6">
+          {readiness ? (
+            <>
+              <div className="flex flex-col items-center gap-4 pt-8">
+                <p className="text-sm font-medium text-muted-foreground">
+                  Readiness for {conceptName}
+                </p>
+                <p className="text-6xl font-semibold font-mono tracking-tight">
+                  {readinessPercent}%
+                </p>
+
+                {/* Progress bar */}
+                <div className="w-full max-w-sm">
+                  <div className="h-2.5 w-full overflow-hidden rounded-full bg-secondary">
+                    <div
+                      className={`h-full rounded-full transition-all duration-700 ease-out ${readinessColor}`}
+                      style={{ width: `${readinessPercent}%` }}
+                    />
+                  </div>
+                  <p className="mt-2 text-center text-xs text-muted-foreground">
                     Based on {readiness.response_count} response
                     {readiness.response_count !== 1 ? "s" : ""}
                   </p>
                 </div>
-                <div className="flex justify-center gap-3">
-                  <Button onClick={handlePracticeAgain}>
-                    Practice Again
-                  </Button>
-                  <Button variant="outline" onClick={handlePracticeAnother}>
-                    Change Concept
-                  </Button>
-                </div>
-              </>
-            ) : (
-              <div className="flex items-center justify-center">
-                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                <span>Saving...</span>
               </div>
-            )}
 
-            {error && <p className="text-sm text-destructive">{error}</p>}
-          </CardContent>
-        </Card>
+              <div className="flex justify-center gap-3">
+                <Button className="h-11" onClick={handlePracticeAgain}>
+                  <RotateCcw className="mr-2 size-4" />
+                  Practice Again
+                </Button>
+                <Button
+                  className="h-11"
+                  variant="outline"
+                  onClick={handlePracticeAnother}
+                >
+                  Change Concept
+                  <ArrowRight className="ml-2 size-4" />
+                </Button>
+              </div>
+            </>
+          ) : (
+            <div className="flex flex-col items-center justify-center gap-4 py-24">
+              <Loader2 className="size-8 animate-spin text-primary" />
+              <span>Saving&hellip;</span>
+            </div>
+          )}
+
+          {error && (
+            <p className="text-center text-sm text-destructive">{error}</p>
+          )}
+        </div>
       )}
     </div>
   );

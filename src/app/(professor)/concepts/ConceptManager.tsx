@@ -378,7 +378,7 @@ export function ConceptManager({
           )}
 
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold">Review Generated Graph</h2>
+            <h2 className="font-serif text-lg font-semibold tracking-tight">Review Generated Graph</h2>
             <div className="flex gap-2">
               <Button
                 variant="outline"
@@ -507,13 +507,15 @@ export function ConceptManager({
         </div>
 
         {/* Right panel: preview graph */}
-        <div>
-          <h2 className="text-lg font-semibold mb-3">Preview</h2>
-          <ConceptGraph
-            nodes={previewLayout.nodes}
-            edges={previewLayout.edges}
-            interactive
-          />
+        <div className="sticky top-6 self-start">
+          <h2 className="font-serif text-lg font-semibold tracking-tight mb-3">Preview</h2>
+          <div className="h-[calc(100vh-10rem)]">
+            <ConceptGraph
+              nodes={previewLayout.nodes}
+              edges={previewLayout.edges}
+              interactive
+            />
+          </div>
         </div>
       </div>
     );
@@ -758,9 +760,11 @@ export function ConceptManager({
       </div>
 
       {/* Right panel: graph preview */}
-      <div>
-        <h2 className="text-lg font-semibold mb-3">Graph Preview</h2>
-        <ConceptGraph nodes={flowNodes} edges={flowEdges} interactive />
+      <div className="sticky top-6 self-start">
+        <h2 className="font-serif text-lg font-semibold tracking-tight mb-3">Graph Preview</h2>
+        <div className="h-[calc(100vh-10rem)]">
+          <ConceptGraph nodes={flowNodes} edges={flowEdges} interactive />
+        </div>
       </div>
     </div>
   );

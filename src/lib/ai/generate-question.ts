@@ -147,7 +147,12 @@ export async function generateQuestion(
 ${contextSection}
 Concept description: ${typedConcept.description}
 ${avoidSection}
-${questionType === "multiple_choice" ? "Provide exactly 4 options labeled A, B, C, D. The correct_answer should be the letter only." : "Set options to null. The correct_answer should be the full answer text."}`;
+${questionType === "multiple_choice" ? "Provide exactly 4 options labeled A, B, C, D. The correct_answer should be the letter only." : "Set options to null. The correct_answer should be the full answer text."}
+
+IMPORTANT — Math formatting: Use LaTeX notation with dollar-sign delimiters for ALL mathematical expressions. Use $...$ for inline math (variables, short expressions) and $$...$$ for display math (equations on their own line). Examples:
+- Inline: "the gradient $\\nabla f(x)$ at step $t$"
+- Display: "$$\\eta_t = \\frac{1}{1 + \\sum_j |g_{t,j}|}$$"
+Never write bare math symbols like η_t or Σ_j — always wrap them in dollar signs.`;
 
   const { output } = await generateText({
     model,

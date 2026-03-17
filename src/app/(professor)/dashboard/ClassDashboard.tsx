@@ -144,13 +144,13 @@ export default function ClassDashboard({
         <Card size="sm">
           <CardContent className="pt-4">
             <p className="text-sm text-muted-foreground">Active Students</p>
-            <p className="text-2xl font-bold">{activeStudents}</p>
+            <p className="text-2xl font-semibold font-mono">{activeStudents}</p>
           </CardContent>
         </Card>
         <Card size="sm">
           <CardContent className="pt-4">
             <p className="text-sm text-muted-foreground">Avg Readiness</p>
-            <p className="text-2xl font-bold">
+            <p className="text-2xl font-semibold font-mono">
               {Math.round(avgReadiness * 100)}%
             </p>
           </CardContent>
@@ -158,13 +158,13 @@ export default function ClassDashboard({
         <Card size="sm">
           <CardContent className="pt-4">
             <p className="text-sm text-muted-foreground">Total Responses</p>
-            <p className="text-2xl font-bold">{totalResponses}</p>
+            <p className="text-2xl font-semibold font-mono">{totalResponses}</p>
           </CardContent>
         </Card>
         <Card size="sm">
           <CardContent className="pt-4">
             <p className="text-sm text-muted-foreground">Low Readiness (&lt;40%)</p>
-            <p className="text-2xl font-bold">
+            <p className="text-2xl font-semibold font-mono">
               {lowConcepts.length} concept{lowConcepts.length !== 1 ? "s" : ""}
             </p>
           </CardContent>

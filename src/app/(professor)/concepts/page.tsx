@@ -17,8 +17,8 @@ export default async function ConceptsPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold">Manage Concepts</h1>
-      <p className="mt-2 mb-6 text-muted-foreground">
+      <h1 className="font-serif text-3xl font-semibold tracking-tight">Manage Concepts</h1>
+      <p className="mt-2 mb-6 text-sm text-muted-foreground">
         Add, edit, and organize course concepts and their dependencies.
       </p>
       <ConceptManager

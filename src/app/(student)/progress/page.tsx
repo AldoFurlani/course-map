@@ -104,8 +104,8 @@ export default async function ProgressPage() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 pb-24 sm:px-6">
-      <h1 className="text-2xl font-bold">Your Progress</h1>
-      <p className="mt-2 mb-6 text-muted-foreground">
+      <h1 className="font-serif text-3xl font-semibold tracking-tight">Your Progress</h1>
+      <p className="mt-2 mb-6 text-sm text-muted-foreground">
         Track your readiness across all course concepts.
       </p>
 
@@ -113,15 +113,15 @@ export default async function ProgressPage() {
       <div className="mb-8 grid grid-cols-3 gap-4">
         <div className="rounded-xl bg-card p-4 ring-1 ring-foreground/10">
           <p className="text-sm text-muted-foreground">Concepts Practiced</p>
-          <p className="text-2xl font-bold">{practicedCount}/{totalConcepts}</p>
+          <p className="text-2xl font-semibold font-mono">{practicedCount}/{totalConcepts}</p>
         </div>
         <div className="rounded-xl bg-card p-4 ring-1 ring-foreground/10">
           <p className="text-sm text-muted-foreground">Mastered (≥70%)</p>
-          <p className="text-2xl font-bold">{masteredCount}/{totalConcepts}</p>
+          <p className="text-2xl font-semibold font-mono">{masteredCount}/{totalConcepts}</p>
         </div>
         <div className="rounded-xl bg-card p-4 ring-1 ring-foreground/10">
           <p className="text-sm text-muted-foreground">Total Questions</p>
-          <p className="text-2xl font-bold">
+          <p className="text-2xl font-semibold font-mono">
             {(responses ?? []).length}
           </p>
         </div>
@@ -130,7 +130,7 @@ export default async function ProgressPage() {
       {/* Recommendations */}
       {recommendations.length > 0 && (
         <div className="mb-8">
-          <h2 className="mb-3 text-lg font-semibold">Recommendations</h2>
+          <h2 className="mb-3 font-serif text-xl font-semibold tracking-tight">Recommendations</h2>
           <div className="space-y-2">
             {recommendations.slice(0, 5).map(({ concept, reason }) => (
               <div
@@ -151,7 +151,7 @@ export default async function ProgressPage() {
       )}
 
       {/* All concepts */}
-      <h2 className="mb-3 text-lg font-semibold">All Concepts</h2>
+      <h2 className="mb-3 font-serif text-xl font-semibold tracking-tight">All Concepts</h2>
       <div className="space-y-2">
         {typedConcepts.map((concept) => {
           const raw = rawMap.get(concept.id) ?? 0;

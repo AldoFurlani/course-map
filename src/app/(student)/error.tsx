@@ -11,7 +11,7 @@ export default function StudentError({
 }) {
   return (
     <div className="flex flex-col items-center justify-center py-20">
-      <h2 className="text-xl font-semibold">Something went wrong</h2>
+      <h2 className="font-serif text-xl font-semibold tracking-tight">Something went wrong</h2>
       <p className="mt-2 text-sm text-muted-foreground">{error.message}</p>
       <Button onClick={reset} className="mt-4">
         Try again

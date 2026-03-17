@@ -47,7 +47,7 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center px-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl">Course Map</CardTitle>
+          <CardTitle className="font-serif text-3xl font-semibold tracking-tight">Course Map</CardTitle>
           <CardDescription>
             Sign in with your email and password
           </CardDescription>

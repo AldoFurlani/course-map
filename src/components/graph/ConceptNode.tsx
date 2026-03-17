@@ -3,92 +3,95 @@
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import type { Node } from "@xyflow/react";
 import type { ConceptNodeData } from "@/lib/graph/layout";
+import { useEffect, useState } from "react";
 
 type ConceptNodeType = Node<ConceptNodeData, "conceptNode">;
 
-function getScoreStyles(score: number | undefined) {
+function getAccent(score: number | undefined) {
   if (score === undefined)
-    return {
-      ring: "ring-border",
-      glow: "",
-      bar: "",
-      badge: null,
-      accent: "bg-muted-foreground/20",
-    };
+    return { border: "border-border", bar: "bg-border", text: "text-muted-foreground" };
   if (score >= 0.7)
-    return {
-      ring: "ring-success/50",
-      glow: "shadow-[0_0_12px_-3px_var(--success)]",
-      bar: "bg-success",
-      badge: "bg-success/15 text-success",
-      accent: "bg-success",
-    };
+    return { border: "border-success", bar: "bg-success", text: "text-success" };
   if (score >= 0.4)
-    return {
-      ring: "ring-warning/50",
-      glow: "shadow-[0_0_12px_-3px_var(--warning)]",
-      bar: "bg-warning",
-      badge: "bg-warning/15 text-warning",
-      accent: "bg-warning",
-    };
-  return {
-    ring: "ring-destructive/50",
-    glow: "shadow-[0_0_12px_-3px_var(--destructive)]",
-    bar: "bg-destructive",
-    badge: "bg-destructive/15 text-destructive",
-    accent: "bg-destructive",
-  };
+    return { border: "border-warning", bar: "bg-warning", text: "text-warning" };
+  return { border: "border-destructive", bar: "bg-destructive", text: "text-destructive" };
 }
 
 export function ConceptNode({ data }: NodeProps<ConceptNodeType>) {
-  const styles = getScoreStyles(data.effectiveScore);
+  const accent = getAccent(data.effectiveScore);
   const pct =
     data.effectiveScore !== undefined
       ? Math.round(data.effectiveScore * 100)
       : null;
 
+  // Depth-based sizing: roots are larger, leaves are smaller
+  const isRoot = data.depth === 0;
+  const isDeep = data.maxDepth > 0 && data.depth >= data.maxDepth * 0.7;
+  const width = isRoot ? "w-[240px]" : isDeep ? "w-[190px]" : "w-[215px]";
+  const titleSize = isRoot ? "text-[14px]" : isDeep ? "text-[12px]" : "text-[13px]";
+  const borderWidth = isRoot ? "border-l-[4px]" : "border-l-[3px]";
+
+  // Staggered entrance animation
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    const delay = data.depth * 80 + Math.random() * 60;
+    const timer = setTimeout(() => setVisible(true), delay);
+    return () => clearTimeout(timer);
+  }, [data.depth]);
+
   return (
     <div
       className={`
-        group relative w-[210px] overflow-hidden rounded-xl
-        bg-card/90 backdrop-blur-sm
-        ring-1 ${styles.ring} ${styles.glow}
-        cursor-pointer transition-all duration-200
-        hover:scale-[1.03] hover:shadow-lg hover:ring-primary/60
+        group relative ${width} ${borderWidth} ${accent.border}
+        rounded-sm bg-card overflow-visible
+        border border-l-0 border-border/60
+        shadow-[0_1px_4px_rgba(0,0,0,0.08)]
+        cursor-pointer
+        transition-all duration-200 ease-out
+        hover:shadow-[0_3px_12px_rgba(0,0,0,0.1)]
+        ${visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"}
       `}
+      style={{
+        transitionProperty: "opacity, transform, box-shadow",
+        transitionDuration: visible ? "400ms, 400ms, 200ms" : "0ms",
+      }}
     >
       <Handle
         type="target"
         position={Position.Top}
-        className="!bg-muted-foreground/40 !border-none !w-2 !h-2"
+        className="!bg-muted-foreground/25 !border-none !w-1.5 !h-1.5"
       />
 
-      {/* Top accent bar */}
-      <div className={`h-0.5 w-full ${styles.accent}`} />
-
-      <div className="px-3 py-2.5">
+      <div className={`${isRoot ? "px-3.5 py-2.5" : "px-2.5 py-2"}`}>
+        {/* Title row */}
         <div className="flex items-start justify-between gap-2">
-          <div className="font-medium text-sm leading-snug">{data.label}</div>
-          {pct !== null && styles.badge && (
-            <span
-              className={`shrink-0 rounded-md px-1.5 py-0.5 text-[11px] font-mono font-medium ${styles.badge}`}
-            >
+          <h3 className={`font-serif ${titleSize} font-semibold leading-snug tracking-tight`}>
+            {data.label}
+          </h3>
+          {pct !== null && (
+            <span className={`shrink-0 font-mono text-[10px] font-medium tabular-nums ${accent.text}`}>
               {pct}%
             </span>
           )}
         </div>
 
+        {/* Description */}
         {data.description && (
-          <div className="text-[11px] text-muted-foreground mt-1 line-clamp-2 leading-relaxed">
+          <p
+            className={`
+              mt-0.5 text-muted-foreground leading-relaxed
+              ${isRoot ? "text-[11px] line-clamp-2" : "text-[10px] line-clamp-1"}
+            `}
+          >
             {data.description}
-          </div>
+          </p>
         )}
 
-        {/* Progress bar */}
+        {/* Progress underline */}
         {data.effectiveScore !== undefined && (
-          <div className="mt-2 h-1 w-full rounded-full bg-muted/50 overflow-hidden">
+          <div className="mt-2 h-px w-full bg-border">
             <div
-              className={`h-full rounded-full transition-all duration-500 ${styles.bar}`}
+              className={`h-full ${accent.bar} transition-all duration-500`}
               style={{ width: `${pct}%` }}
             />
           </div>
@@ -98,8 +101,21 @@ export function ConceptNode({ data }: NodeProps<ConceptNodeType>) {
       <Handle
         type="source"
         position={Position.Bottom}
-        className="!bg-muted-foreground/40 !border-none !w-2 !h-2"
+        className="!bg-muted-foreground/25 !border-none !w-1.5 !h-1.5"
       />
+
+      {/* Hover tooltip — floats below the node, pointer-events-none prevents jitter */}
+      {data.description && (
+        <div
+          className="absolute left-0 right-0 top-full z-50 hidden group-hover:block pointer-events-none"
+        >
+          <div className={`mt-1 ${isRoot ? "px-3.5" : "px-2.5"} py-1.5 rounded-sm bg-card border border-border/60 shadow-[0_3px_12px_rgba(0,0,0,0.1)]`}>
+            <p className="text-[10px] text-muted-foreground leading-relaxed">
+              {data.description}
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

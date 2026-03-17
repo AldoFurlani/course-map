@@ -32,11 +32,11 @@ export default async function ProfessorLayout({
   }
 
   return (
-    <div className="min-h-screen">
-      <main className="mx-auto w-full max-w-7xl px-4 py-6 pb-24 sm:px-6">
+    <div className="min-h-screen pl-11">
+      <Navbar role={profile.role} fullName={profile.full_name} />
+      <main className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6">
         {children}
       </main>
-      <Navbar role={profile.role} fullName={profile.full_name} />
     </div>
   );
 }

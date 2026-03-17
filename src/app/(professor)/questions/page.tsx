@@ -14,8 +14,8 @@ export default async function QuestionsPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold">Question Bank</h1>
-      <p className="mt-2 mb-6 text-muted-foreground">
+      <h1 className="font-serif text-3xl font-semibold tracking-tight">Question Bank</h1>
+      <p className="mt-2 mb-6 text-sm text-muted-foreground">
         Curate questions for students to practice with. Star questions to make them visible in the student question bank.
       </p>
       <QuestionBank

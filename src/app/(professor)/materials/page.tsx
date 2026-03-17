@@ -16,8 +16,8 @@ export default async function MaterialsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Course Materials</h1>
-        <p className="mt-1 text-muted-foreground">
+        <h1 className="font-serif text-3xl font-semibold tracking-tight">Course Materials</h1>
+        <p className="mt-2 text-sm text-muted-foreground">
           Upload course notes, slides, and assignments. Files are chunked and
           embedded for RAG-powered question generation.
         </p>

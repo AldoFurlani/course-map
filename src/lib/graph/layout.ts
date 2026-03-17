@@ -11,6 +11,10 @@ export interface ConceptNodeData {
   conceptId: string;
   readinessScore?: number;
   effectiveScore?: number;
+  /** 0 = root (no prerequisites), higher = deeper in the DAG */
+  depth: number;
+  /** Maximum depth in the entire graph, for normalization */
+  maxDepth: number;
   [key: string]: unknown;
 }
 
@@ -32,6 +36,48 @@ export function layoutGraph(
 
   dagre.layout(g);
 
+  // Compute depth for each node (BFS from roots)
+  const childrenMap = new Map<string, string[]>();
+  const inDegree = new Map<string, number>();
+  for (const concept of concepts) {
+    childrenMap.set(concept.id, []);
+    inDegree.set(concept.id, 0);
+  }
+  for (const edge of edges) {
+    childrenMap.get(edge.source_id)?.push(edge.target_id);
+    inDegree.set(edge.target_id, (inDegree.get(edge.target_id) ?? 0) + 1);
+  }
+
+  const depthMap = new Map<string, number>();
+  const queue: string[] = [];
+  for (const concept of concepts) {
+    if ((inDegree.get(concept.id) ?? 0) === 0) {
+      depthMap.set(concept.id, 0);
+      queue.push(concept.id);
+    }
+  }
+
+  while (queue.length > 0) {
+    const current = queue.shift()!;
+    const currentDepth = depthMap.get(current) ?? 0;
+    for (const child of childrenMap.get(current) ?? []) {
+      const existing = depthMap.get(child) ?? -1;
+      if (currentDepth + 1 > existing) {
+        depthMap.set(child, currentDepth + 1);
+      }
+      // Only enqueue when all parents have been processed
+      const parentCount = inDegree.get(child) ?? 0;
+      const processedParents = edges.filter(
+        (e) => e.target_id === child && depthMap.has(e.source_id)
+      ).length;
+      if (processedParents >= parentCount) {
+        queue.push(child);
+      }
+    }
+  }
+
+  const maxDepth = Math.max(...Array.from(depthMap.values()), 0);
+
   const flowNodes: Node<ConceptNodeData>[] = concepts.map((concept) => {
     const pos = g.node(concept.id);
     return {
@@ -45,6 +91,8 @@ export function layoutGraph(
         label: concept.name,
         description: concept.description,
         conceptId: concept.id,
+        depth: depthMap.get(concept.id) ?? 0,
+        maxDepth,
       },
     };
   });
