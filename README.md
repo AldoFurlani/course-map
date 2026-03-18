@@ -2,20 +2,18 @@
 
 Self-directed study app for building interactive concept dependency graphs, uploading course materials, and practicing with AI-generated questions. Readiness scores track mastery per concept using a weighted blend of quiz performance and self-assessment.
 
-<!-- TODO: Hero screenshot — full graph page (view mode) with a populated concept DAG showing readiness colors, ~15+ nodes. Crop to show nav rail + graph + legend strip. Light mode. -->
+**[Try it live →](https://course-map-sigma.vercel.app/)**
+
 ![Concept graph overview](docs/screenshots/graph-overview.png)
 
 ## Features
 
 - **Concept Graphs** — Interactive DAG visualization (React Flow + dagre) with view/edit modes. Generate concepts automatically from uploaded materials via AI, or add them manually. Prerequisite edges with server-side cycle detection.
 - **Semantic Material Search** — Upload PDFs, text, or markdown. Materials are chunked and embedded via Supabase Edge Functions (`gte-small`, 384d). Click any concept node to see semantically matched materials with a built-in PDF viewer.
-- **AI Practice Questions** — Select a concept, type (MC or free response), and difficulty. Questions are generated using RAG context from your materials. MC answers are verified by a second LLM call. Answer, get AI feedback, self-assess, and watch your readiness update.
+- **AI Practice Questions** — Select a concept, type (MC or free response), and difficulty. Questions are generated using RAG context from your materials. MC answers are verified by a second LLM call. Short answer questions support pdf upload. Answer, get AI feedback, self-assess, and watch your readiness update.
 - **Readiness Tracking** — Per-concept mastery scores (EWMA quiz performance + self-assessment average). Progress page with SVG ring charts, per-concept bars, and actionable recommendations.
 - **Question History** — Filterable, paginated response history with LaTeX rendering, MC option highlighting, self-assessment stars, and favorites.
 - **Multi-Course** — Create multiple courses, each with its own graph, materials, questions, and progress.
-
-<!-- TODO: GIF or short video (~15s) — practice flow: select concept → generate question → answer MC → see feedback + self-assess. Best way to show the interactive loop. -->
-![Practice flow](docs/screenshots/practice-flow.gif)
 
 ## Tech Stack
 
@@ -123,7 +121,6 @@ raw_score = 0.6 * quiz_performance_ewma(decay=0.85) + 0.4 * avg(self_assessment)
 
 ## Architecture Notes
 
-- **No roles** — every user can create courses, upload materials, manage concepts, and practice.
 - **Auth** — email + password via Supabase Auth. Profiles auto-created on signup via DB trigger.
 - **RLS** — Row Level Security on all tables. Data is user-scoped via course ownership.
 - **Route-level auth** — all API routes use `requireAuth()` or `requireCourseOwner()` for defense-in-depth.
@@ -140,11 +137,6 @@ raw_score = 0.6 * quiz_performance_ewma(decay=0.85) + 0.4 * avg(self_assessment)
 | Answer evaluations | 30/hr per user |
 | Material uploads | 20/hr per user |
 | Graph generation (applied concepts) | 50/hr per course |
-
-## Demo
-
-<!-- TODO: Screen recording (~30s) — end-to-end: create course → upload PDF → generate graph → click concept to see materials → practice a question → check progress. Upload to GitHub and replace the URL below. -->
-https://github.com/user-attachments/assets/placeholder-demo-video
 
 ## License
 
