@@ -1,10 +1,8 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
-type Role = "student" | "professor" | "ta";
-
 interface AuthResult {
-  user: { id: string; role: Role };
+  user: { id: string };
 }
 
 /**
@@ -20,19 +18,27 @@ export async function requireAuth(): Promise<AuthResult | NextResponse> {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const role = (user.user_metadata?.role as Role) ?? "student";
-  return { user: { id: user.id, role } };
+  return { user: { id: user.id } };
 }
 
 /**
- * Verify the request is authenticated AND the user has a professor or TA role.
- * Returns the user or a 401/403 response.
+ * Verify the user owns the given course. Returns the user or a 403 response.
  */
-export async function requireProfessor(): Promise<AuthResult | NextResponse> {
+export async function requireCourseOwner(
+  courseId: string
+): Promise<AuthResult | NextResponse> {
   const result = await requireAuth();
   if (result instanceof NextResponse) return result;
 
-  if (result.user.role !== "professor" && result.user.role !== "ta") {
+  const supabase = await createClient();
+  const { data: course } = await supabase
+    .from("courses")
+    .select("id")
+    .eq("id", courseId)
+    .eq("user_id", result.user.id)
+    .single();
+
+  if (!course) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

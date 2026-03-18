@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Map } from "lucide-react";
 
 export default function LoginPage() {
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
@@ -22,29 +22,19 @@ export default function LoginPage() {
     setIsError(false);
 
     const supabase = createClient();
-    const trimmed = username.toLowerCase().trim();
-
-    // Try username-based login first, fall back to raw input as email
-    let { error } = await supabase.auth.signInWithPassword({
-      email: `${trimmed}@coursemap.local`,
+    const { error } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
       password,
     });
 
-    if (error && trimmed.includes("@")) {
-      ({ error } = await supabase.auth.signInWithPassword({
-        email: trimmed,
-        password,
-      }));
-    }
-
     if (error) {
-      setMessage("Invalid username or password");
+      setMessage("Invalid email or password");
       setIsError(true);
       setLoading(false);
       return;
     }
 
-    window.location.href = "/";
+    window.location.href = "/courses";
   }
 
   return (
@@ -105,13 +95,13 @@ export default function LoginPage() {
 
           <form onSubmit={handleLogin} className="space-y-5">
             <div className="space-y-2 auth-field-enter" style={{ animationDelay: "120ms" }}>
-              <Label htmlFor="username">Username</Label>
+              <Label htmlFor="email">Email</Label>
               <Input
-                id="username"
-                type="text"
-                placeholder="Your Username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                id="email"
+                type="email"
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 required
               />
             </div>

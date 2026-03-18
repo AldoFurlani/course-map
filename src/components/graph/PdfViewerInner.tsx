@@ -17,6 +17,11 @@ pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   import.meta.url
 ).toString();
 
+const pdfjsOptions = {
+  cMapUrl: `https://unpkg.com/pdfjs-dist@${pdfjs.version}/cmaps/`,
+  cMapPacked: true,
+};
+
 interface PdfViewerInnerProps {
   url: string;
   initialPage?: number;
@@ -134,6 +139,7 @@ export default function PdfViewerInner({
         <Document
           file={url}
           onLoadSuccess={onDocumentLoadSuccess}
+          options={pdfjsOptions}
           loading={
             <div className="flex items-center justify-center py-20">
               <div className="flex flex-col items-center gap-3">

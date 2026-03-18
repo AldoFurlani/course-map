@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { requireCourseOwner } from "@/lib/auth";
 import { wouldCreateCycle } from "@/lib/graph/cycle-detection";
 import type {
   GeneratedConcept,
@@ -9,27 +10,22 @@ import type {
 } from "@/lib/types/database";
 
 interface ApplyPayload {
+  course_id: string;
   concepts: GeneratedConcept[];
   edges: GeneratedEdge[];
 }
 
 export async function POST(request: NextRequest) {
-  const supabase = await createClient();
-
-  // Auth check
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const role = user.user_metadata?.role;
-  if (role !== "professor" && role !== "ta") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-
   const body = (await request.json()) as ApplyPayload;
+
+  if (!body.course_id) {
+    return NextResponse.json({ error: "course_id is required" }, { status: 400 });
+  }
+
+  const auth = await requireCourseOwner(body.course_id);
+  if (auth instanceof NextResponse) return auth;
+
+  const supabase = await createClient();
 
   if (!body.concepts || !body.edges) {
     return NextResponse.json(
@@ -55,6 +51,7 @@ export async function POST(request: NextRequest) {
       .from("concepts")
       .insert(
         newConcepts.map((c) => ({
+          course_id: body.course_id,
           name: c.name.trim(),
           description: c.description.trim(),
         }))
@@ -70,10 +67,11 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // Fetch existing edges for cycle detection
+  // Fetch existing edges for cycle detection (scoped to course)
   const { data: existingEdges } = await supabase
     .from("concept_edges")
-    .select("*");
+    .select("*")
+    .eq("course_id", body.course_id);
 
   const allEdges: ConceptEdge[] = existingEdges ?? [];
   const createdEdges: ConceptEdge[] = [];
@@ -90,7 +88,11 @@ export async function POST(request: NextRequest) {
 
     const { data, error } = await supabase
       .from("concept_edges")
-      .insert({ source_id: sourceId, target_id: targetId })
+      .insert({
+        course_id: body.course_id,
+        source_id: sourceId,
+        target_id: targetId,
+      })
       .select()
       .single();
 
@@ -108,11 +110,13 @@ export async function POST(request: NextRequest) {
   const { data: allConcepts } = await supabase
     .from("concepts")
     .select("*")
+    .eq("course_id", body.course_id)
     .order("name");
 
   const { data: allEdgesFinal } = await supabase
     .from("concept_edges")
-    .select("*");
+    .select("*")
+    .eq("course_id", body.course_id);
 
   return NextResponse.json({
     concepts: allConcepts ?? [],

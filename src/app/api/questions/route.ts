@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { requireProfessor } from "@/lib/auth";
+import { requireAuth } from "@/lib/auth";
 
 export async function POST(request: NextRequest) {
-  const auth = await requireProfessor();
+  const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
 
   const supabase = await createClient();
@@ -36,6 +36,7 @@ export async function POST(request: NextRequest) {
   const { data, error } = await supabase
     .from("questions")
     .insert({
+      course_id: body.course_id,
       concept_id,
       question_type,
       difficulty,

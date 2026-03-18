@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
-import { requireProfessor } from "@/lib/auth";
+import { requireAuth } from "@/lib/auth";
 
 export async function POST(request: Request) {
-  const auth = await requireProfessor();
+  const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
 
   try {

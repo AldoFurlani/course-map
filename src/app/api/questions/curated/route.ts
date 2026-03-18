@@ -13,6 +13,7 @@ export async function GET(request: NextRequest) {
 
   const { searchParams } = new URL(request.url);
   const conceptId = searchParams.get("concept_id");
+  const courseId = searchParams.get("course_id");
 
   let query = supabase
     .from("questions")
@@ -20,6 +21,10 @@ export async function GET(request: NextRequest) {
     .eq("curated", true)
     .order("concept_id")
     .order("difficulty");
+
+  if (courseId) {
+    query = query.eq("course_id", courseId);
+  }
 
   if (conceptId) {
     query = query.eq("concept_id", conceptId);

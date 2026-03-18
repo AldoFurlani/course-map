@@ -62,6 +62,7 @@ export async function POST(
         student_id: user.id,
         question_id: id,
         concept_id: question.concept_id,
+        course_id: question.course_id,
         answer_text: answer.trim(),
         is_correct: isCorrect,
         ai_feedback: feedback,

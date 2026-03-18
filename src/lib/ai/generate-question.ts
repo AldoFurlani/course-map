@@ -1,7 +1,7 @@
 import { generateText, Output } from "ai";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
-import { retrieveChunks } from "@/lib/rag/retriever";
+import { retrieveChunks, filterByRelativeScore } from "@/lib/rag/retriever";
 import { getConceptEmbedding } from "@/lib/rag/embed";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { model } from "./client";
@@ -79,8 +79,13 @@ export async function generateQuestion(
   try {
     usedCachedEmbedding = !!typedConcept.cached_embedding;
     const embedding = await getConceptEmbedding(typedConcept);
-    const rawChunks = await retrieveChunks(embedding, 12, 0.5);
-    retrievedChunks = rawChunks.filter((c) => c.chunk_text.length >= 150).slice(0, 6);
+    const rawChunks = await retrieveChunks(embedding, typedConcept.course_id, 12, 0.5);
+    // Filter by relative score to discard chunks that only match due to gte-small's
+    // narrow similarity band, then drop short chunks (title pages etc.)
+    const relativeThreshold = filterByRelativeScore(rawChunks);
+    retrievedChunks = rawChunks
+      .filter((c) => c.similarity >= relativeThreshold && c.chunk_text.length >= 150)
+      .slice(0, 6);
     ragContext = buildOrderedContext(retrievedChunks);
   } catch (err) {
     console.error("Semantic search failed:", err);
@@ -186,6 +191,7 @@ Return the letter of the correct answer and your reasoning.`,
   const { data: question, error: insertError } = await supabase
     .from("questions")
     .insert({
+      course_id: typedConcept.course_id,
       concept_id: conceptId,
       question_type: questionType,
       difficulty,

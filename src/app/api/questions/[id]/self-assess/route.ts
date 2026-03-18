@@ -58,6 +58,7 @@ export async function PATCH(
       supabase,
       user.id,
       response.concept_id,
+      response.course_id,
       response.is_correct,
       selfAssessment
     );

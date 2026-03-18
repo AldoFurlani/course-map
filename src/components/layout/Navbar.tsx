@@ -12,9 +12,8 @@ import {
   Dumbbell,
   Clock,
   TrendingUp,
-  LayoutDashboard,
   FileText,
-  HelpCircle,
+  ArrowLeft,
 } from "lucide-react";
 import {
   Tooltip,
@@ -23,29 +22,24 @@ import {
 } from "@/components/ui/tooltip";
 
 interface NavbarProps {
-  role: "student" | "professor" | "ta";
+  courseId: string;
+  courseName: string;
   fullName: string;
 }
 
-const studentLinks = [
-  { href: "/graph", label: "Graph", icon: Network },
-  { href: "/practice", label: "Practice", icon: Dumbbell },
-  { href: "/history", label: "History", icon: Clock },
-  { href: "/progress", label: "Progress", icon: TrendingUp },
-];
-
-const professorLinks = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/concepts", label: "Concepts", icon: Network },
-  { href: "/materials", label: "Materials", icon: FileText },
-  { href: "/questions", label: "Questions", icon: HelpCircle },
-];
-
-export default function Navbar({ role, fullName }: NavbarProps) {
+export default function Navbar({ courseId, courseName, fullName }: NavbarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const { theme, setTheme } = useTheme();
-  const links = role === "student" ? studentLinks : professorLinks;
+
+  const prefix = `/course/${courseId}`;
+  const links = [
+    { href: `${prefix}/graph`, label: "Graph", icon: Network },
+    { href: `${prefix}/practice`, label: "Practice", icon: Dumbbell },
+    { href: `${prefix}/history`, label: "History", icon: Clock },
+    { href: `${prefix}/progress`, label: "Progress", icon: TrendingUp },
+    { href: `${prefix}/materials`, label: "Materials", icon: FileText },
+  ];
 
   async function handleLogout() {
     const supabase = createClient();
@@ -55,8 +49,23 @@ export default function Navbar({ role, fullName }: NavbarProps) {
 
   return (
     <nav className="fixed left-0 top-0 z-50 flex h-screen w-11 flex-col items-center border-r border-border bg-background py-3">
+      {/* Back to courses */}
+      <Tooltip>
+        <TooltipTrigger
+          className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground mb-2"
+          render={<Link href="/courses" aria-label="Back to courses" />}
+        >
+          <ArrowLeft className="size-[17px]" strokeWidth={1.5} />
+        </TooltipTrigger>
+        <TooltipContent side="right" sideOffset={12}>
+          {courseName}
+        </TooltipContent>
+      </Tooltip>
+
+      <div className="w-6 border-t border-border mb-2" />
+
       {/* Navigation links */}
-      <div className="flex flex-1 flex-col items-center gap-1 pt-1">
+      <div className="flex flex-1 flex-col items-center gap-1">
         {links.map((link) => {
           const isActive =
             pathname === link.href ||

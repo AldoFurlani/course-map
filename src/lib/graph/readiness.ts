@@ -34,6 +34,7 @@ export async function updateReadinessAfterResponse(
   supabase: SupabaseClient,
   studentId: string,
   conceptId: string,
+  courseId: string,
   isCorrect: boolean,
   selfAssessment: number
 ): Promise<ReadinessScore> {
@@ -62,6 +63,7 @@ export async function updateReadinessAfterResponse(
       {
         student_id: studentId,
         concept_id: conceptId,
+        course_id: courseId,
         quiz_ewma: quizEWMA,
         self_assessment_avg: selfAssessmentAvg,
         raw_score: rawScore,

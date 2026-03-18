@@ -17,7 +17,7 @@ function getAccent(score: number | undefined) {
   return { border: "border-destructive", bar: "bg-destructive", text: "text-destructive" };
 }
 
-export function ConceptNode({ data }: NodeProps<ConceptNodeType>) {
+export function ConceptNode({ data, isConnectable }: NodeProps<ConceptNodeType>) {
   const accent = getAccent(data.effectiveScore);
   const pct =
     data.effectiveScore !== undefined
@@ -60,7 +60,8 @@ export function ConceptNode({ data }: NodeProps<ConceptNodeType>) {
       <Handle
         type="target"
         position={Position.Top}
-        className="!bg-muted-foreground/25 !border-none !w-1.5 !h-1.5"
+        isConnectable={isConnectable}
+        className={`!border-none !w-1.5 !h-1.5 ${isConnectable ? "!bg-primary/40 !w-2 !h-2" : "!bg-muted-foreground/25"}`}
       />
 
       <div className={`${isRoot ? "px-3.5 py-2.5" : "px-2.5 py-2"}`}>
@@ -102,7 +103,8 @@ export function ConceptNode({ data }: NodeProps<ConceptNodeType>) {
       <Handle
         type="source"
         position={Position.Bottom}
-        className="!bg-muted-foreground/25 !border-none !w-1.5 !h-1.5"
+        isConnectable={isConnectable}
+        className={`!border-none !w-1.5 !h-1.5 ${isConnectable ? "!bg-primary/40 !w-2 !h-2" : "!bg-muted-foreground/25"}`}
       />
 
     </div>

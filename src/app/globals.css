@@ -218,3 +218,19 @@
 .auth-field-enter {
   animation: auth-field-enter 0.4s ease-out both;
 }
+
+/* React Flow: make selected edges clearly visible */
+.react-flow__edge.selected .react-flow__edge-path {
+  stroke: var(--primary) !important;
+  stroke-width: 2.5 !important;
+  opacity: 0.85 !important;
+}
+
+.react-flow__edge.selected .react-flow__edge-interaction {
+  stroke-width: 20 !important;
+}
+
+/* Wider hit area for edges in editable mode */
+.react-flow__edge-interaction {
+  stroke-width: 20 !important;
+}

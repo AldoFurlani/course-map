@@ -1,29 +1,52 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { requireCourseOwner } from "@/lib/auth";
 import { generateConceptGraph } from "@/lib/ai/generate-graph";
 import { validateDAG } from "@/lib/graph/cycle-detection";
 import type { GeneratedConcept, GeneratedEdge } from "@/lib/types/database";
 
-export async function POST() {
+export async function POST(request: NextRequest) {
+  const body = await request.json();
+  const courseId = body.course_id as string;
+
+  if (!courseId) {
+    return NextResponse.json({ error: "course_id is required" }, { status: 400 });
+  }
+
+  const auth = await requireCourseOwner(courseId);
+  if (auth instanceof NextResponse) return auth;
+
   const supabase = await createClient();
 
-  // Auth check
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  // Rate limit: 50 concepts created per hour globally (across all user's courses)
+  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+  const { data: userCourses } = await supabase
+    .from("courses")
+    .select("id")
+    .eq("user_id", auth.user.id);
+
+  const userCourseIds = (userCourses ?? []).map((c) => c.id);
+
+  if (userCourseIds.length > 0) {
+    const { count } = await supabase
+      .from("concepts")
+      .select("*", { count: "exact", head: true })
+      .in("course_id", userCourseIds)
+      .gte("created_at", oneHourAgo);
+
+    if ((count ?? 0) >= 50) {
+      return NextResponse.json(
+        { error: "Graph generation rate limit exceeded (50 concepts/hr). Please wait before generating again." },
+        { status: 429 }
+      );
+    }
   }
 
-  const role = user.user_metadata?.role;
-  if (role !== "professor" && role !== "ta") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-
-  // Fetch all chunks (include id for mapping)
+  // Fetch all chunks for this course (include id for mapping)
   const { data: chunks, error: chunksError } = await supabase
     .from("course_material_chunks")
     .select("id, material_id, chunk_text, chunk_index")
+    .eq("course_id", courseId)
     .order("material_id")
     .order("chunk_index");
 
@@ -38,10 +61,11 @@ export async function POST() {
     );
   }
 
-  // Fetch existing concepts
+  // Fetch existing concepts for this course
   const { data: existingConcepts } = await supabase
     .from("concepts")
     .select("*")
+    .eq("course_id", courseId)
     .order("name");
 
   try {

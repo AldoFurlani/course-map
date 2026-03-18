@@ -43,18 +43,7 @@ export async function updateSession(request: NextRequest) {
   ) {
     // If logged in, redirect away from auth pages
     if (user) {
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("id", user.id)
-        .single();
-
-      const redirectTo =
-        profile?.role === "professor" || profile?.role === "ta"
-          ? "/dashboard"
-          : "/graph";
-
-      return NextResponse.redirect(new URL(redirectTo, request.url));
+      return NextResponse.redirect(new URL("/courses", request.url));
     }
     return supabaseResponse;
   }

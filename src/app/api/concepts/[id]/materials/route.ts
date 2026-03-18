@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getConceptEmbedding } from "@/lib/rag/embed";
+import { filterByRelativeScore } from "@/lib/rag/retriever";
 import type { Concept } from "@/lib/types/database";
 
 export async function GET(
@@ -41,6 +42,7 @@ export async function GET(
   // Fetch more chunks to ensure we get results from every material
   const { data: matches, error: matchError } = await supabase.rpc("match_chunks", {
     query_embedding: JSON.stringify(embedding),
+    p_course_id: concept.course_id,
     match_count: 30,
     match_threshold: 0.3,
   });
@@ -90,23 +92,59 @@ export async function GET(
     materials?.map((m) => [m.id, m]) ?? []
   );
 
-  const DISPLAY_THRESHOLD = 0.55;
+  // Adaptive threshold: filters out unrelated concepts that score high in
+  // absolute terms due to gte-small's narrow similarity range.
+  const typedMatches = matches as { similarity: number; material_id: string; page_number: number | null }[];
+  const adaptiveThreshold = filterByRelativeScore(typedMatches);
 
-  const results = [...bestByMaterial.values()]
-    .filter((match) => match.similarity >= DISPLAY_THRESHOLD)
-    .sort((a, b) => b.similarity - a.similarity)
-    .map((match) => {
-      const material = materialMap.get(match.material_id);
-      return {
-        materialId: match.material_id,
-        materialTitle: material?.title ?? "Unknown",
-        fileName: material?.file_name ?? "",
-        fileType: material?.file_type ?? "text",
-        filePath: material?.file_path ?? "",
-        pageNumber: match.page_number,
-        similarity: match.similarity,
-      };
-    });
+  if (process.env.DEBUG_AI) {
+    const sims = typedMatches.map((m) => m.similarity);
+    const sortedSims = [...sims].sort((a, b) => a - b);
+    console.log(
+      `[MATERIALS] concept=${concept.name} | chunks=${sims.length} | ` +
+      `min=${Math.min(...sims).toFixed(3)} median=${sortedSims[Math.floor(sortedSims.length / 2)]?.toFixed(3) ?? "N/A"} ` +
+      `max=${Math.max(...sims).toFixed(3)} | threshold=${adaptiveThreshold.toFixed(3)}`
+    );
+    // Log best score per material
+    for (const [matId, best] of bestByMaterial) {
+      const mat = materialMap.get(matId);
+      const status = best.similarity >= adaptiveThreshold ? "PASS" : "FAIL";
+      console.log(
+        `  [${status}] ${mat?.title ?? matId} best=${best.similarity.toFixed(3)}`
+      );
+    }
+  }
+
+  const passing = [...bestByMaterial.values()]
+    .filter((match) => match.similarity >= adaptiveThreshold)
+    .sort((a, b) => b.similarity - a.similarity);
+
+  // Normalize best-chunk score per material to a 0–1 relevance scale.
+  // Floor maps to 0, best overall chunk maps to 1. Everything that passed
+  // the adaptive threshold is shown — the score is purely for ranking.
+  const topChunkScore = typedMatches.length > 0
+    ? Math.max(...typedMatches.map((m) => m.similarity))
+    : 1;
+  const floorScore = 0.80;
+  const displayRange = topChunkScore - floorScore;
+
+  const results = passing.map((match) => {
+    const material = materialMap.get(match.material_id);
+    const relevance =
+      displayRange > 0.001
+        ? (match.similarity - floorScore) / displayRange
+        : 1;
+
+    return {
+      materialId: match.material_id,
+      materialTitle: material?.title ?? "Unknown",
+      fileName: material?.file_name ?? "",
+      fileType: material?.file_type ?? "text",
+      filePath: material?.file_path ?? "",
+      pageNumber: match.page_number,
+      similarity: Math.max(relevance, 0.05),
+    };
+  });
 
   return NextResponse.json({ results });
 }

@@ -13,20 +13,30 @@ export async function GET(request: NextRequest) {
 
   const { searchParams } = new URL(request.url);
   const conceptId = searchParams.get("concept_id");
+  const courseId = searchParams.get("course_id");
   const limit = Math.max(1, Math.min(parseInt(searchParams.get("limit") ?? "50") || 50, 100));
   const offset = Math.max(0, parseInt(searchParams.get("offset") ?? "0") || 0);
 
   let query = supabase
     .from("student_responses")
     .select(
-      "id, concept_id, answer_text, is_correct, ai_feedback, self_assessment, created_at, question_id"
+      "id, concept_id, answer_text, is_correct, ai_feedback, self_assessment, favorited, created_at, question_id"
     )
     .eq("student_id", user.id)
     .order("created_at", { ascending: false })
     .range(offset, offset + limit - 1);
 
+  if (courseId) {
+    query = query.eq("course_id", courseId);
+  }
+
   if (conceptId) {
     query = query.eq("concept_id", conceptId);
+  }
+
+  const favorited = searchParams.get("favorited");
+  if (favorited === "true") {
+    query = query.eq("favorited", true);
   }
 
   const { data: responses, error } = await query;

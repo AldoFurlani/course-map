@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { requireProfessor } from "@/lib/auth";
+import { requireAuth } from "@/lib/auth";
 import type { UpdateConceptInput } from "@/lib/types/database";
 
 export async function PUT(
@@ -8,7 +8,7 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const auth = await requireProfessor();
+  const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
 
   const supabase = await createClient();
@@ -46,7 +46,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const auth = await requireProfessor();
+  const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
 
   const supabase = await createClient();

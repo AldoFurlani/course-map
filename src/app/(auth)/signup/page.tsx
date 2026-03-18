@@ -6,13 +6,12 @@ import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Map, GraduationCap, BookOpen } from "lucide-react";
+import { Map } from "lucide-react";
 
 export default function SignupPage() {
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
-  const [role, setRole] = useState<"student" | "professor">("student");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [isError, setIsError] = useState(false);
@@ -25,12 +24,11 @@ export default function SignupPage() {
 
     const supabase = createClient();
     const { error } = await supabase.auth.signUp({
-      email: `${username.toLowerCase().trim()}@coursemap.local`,
+      email: email.trim(),
       password,
       options: {
         data: {
           full_name: fullName,
-          role,
         },
       },
     });
@@ -42,7 +40,7 @@ export default function SignupPage() {
       return;
     }
 
-    window.location.href = "/";
+    window.location.href = "/courses";
   }
 
   return (
@@ -114,13 +112,13 @@ export default function SignupPage() {
               />
             </div>
             <div className="space-y-2 auth-field-enter" style={{ animationDelay: "180ms" }}>
-              <Label htmlFor="username">Username</Label>
+              <Label htmlFor="email">Email</Label>
               <Input
-                id="username"
-                type="text"
-                placeholder="Your Username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                id="email"
+                type="email"
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 required
               />
             </div>
@@ -136,36 +134,7 @@ export default function SignupPage() {
                 required
               />
             </div>
-            <div className="space-y-2 auth-field-enter" style={{ animationDelay: "300ms" }}>
-              <Label>I am a</Label>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => setRole("student")}
-                  className={`flex items-center gap-2.5 rounded-lg border px-4 py-3 text-sm transition-colors cursor-pointer ${
-                    role === "student"
-                      ? "border-primary bg-primary/5 text-foreground"
-                      : "border-border text-muted-foreground hover:border-foreground/20"
-                  }`}
-                >
-                  <GraduationCap className="size-4 shrink-0" strokeWidth={1.5} />
-                  Student
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setRole("professor")}
-                  className={`flex items-center gap-2.5 rounded-lg border px-4 py-3 text-sm transition-colors cursor-pointer ${
-                    role === "professor"
-                      ? "border-primary bg-primary/5 text-foreground"
-                      : "border-border text-muted-foreground hover:border-foreground/20"
-                  }`}
-                >
-                  <BookOpen className="size-4 shrink-0" strokeWidth={1.5} />
-                  Professor
-                </button>
-              </div>
-            </div>
-            <div className="auth-field-enter" style={{ animationDelay: "360ms" }}>
+            <div className="auth-field-enter" style={{ animationDelay: "300ms" }}>
               <Button type="submit" className="w-full" disabled={loading}>
                 {loading ? "Creating account..." : "Create account"}
               </Button>
@@ -178,7 +147,7 @@ export default function SignupPage() {
             </p>
           )}
 
-          <div className="mt-8 pt-6 border-t border-border auth-field-enter" style={{ animationDelay: "420ms" }}>
+          <div className="mt-8 pt-6 border-t border-border auth-field-enter" style={{ animationDelay: "360ms" }}>
             <p className="text-center text-sm text-muted-foreground">
               Already have an account?{" "}
               <Link href="/login" className="text-primary font-medium hover:underline">

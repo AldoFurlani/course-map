@@ -1,15 +1,26 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { requireProfessor } from "@/lib/auth";
+import { requireAuth, requireCourseOwner } from "@/lib/auth";
 import { checkRateLimit, RateLimitError } from "@/lib/rate-limit";
 import { chunkText, chunkPdfPages, stripMarkdown } from "@/lib/rag/chunker";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const auth = await requireAuth();
+  if (auth instanceof NextResponse) return auth;
+
+  const { searchParams } = new URL(request.url);
+  const courseId = searchParams.get("course_id");
+
+  if (!courseId) {
+    return NextResponse.json({ error: "course_id is required" }, { status: 400 });
+  }
+
   const supabase = await createClient();
 
   const { data, error } = await supabase
     .from("course_materials")
     .select("*")
+    .eq("course_id", courseId)
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -20,7 +31,14 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const auth = await requireProfessor();
+  const formData = await request.formData();
+  const courseId = formData.get("course_id") as string | null;
+
+  if (!courseId) {
+    return NextResponse.json({ error: "course_id is required" }, { status: 400 });
+  }
+
+  const auth = await requireCourseOwner(courseId);
   if (auth instanceof NextResponse) return auth;
 
   const supabase = await createClient();
@@ -35,7 +53,6 @@ export async function POST(request: NextRequest) {
     throw err;
   }
 
-  const formData = await request.formData();
   const file = formData.get("file") as File | null;
   const title = formData.get("title") as string | null;
 
@@ -72,6 +89,7 @@ export async function POST(request: NextRequest) {
   const { data: material, error: insertError } = await supabase
     .from("course_materials")
     .insert({
+      course_id: courseId,
       title: title.trim(),
       file_name: file.name,
       file_type: fileType,
@@ -109,6 +127,7 @@ export async function POST(request: NextRequest) {
 
   // Save chunks to database (without embeddings — those are generated async)
   const chunkRows = chunks.map((c) => ({
+    course_id: courseId,
     material_id: material.id,
     chunk_text: c.text,
     chunk_index: c.index,

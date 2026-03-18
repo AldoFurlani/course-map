@@ -32,22 +32,6 @@ export async function GET(request: Request) {
   return NextResponse.redirect(new URL("/login?error=auth", origin));
 }
 
-async function getRedirectPath(supabase: Awaited<ReturnType<typeof createClient>>): Promise<string> {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (user) {
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", user.id)
-      .single();
-
-    if (profile?.role === "professor" || profile?.role === "ta") {
-      return "/dashboard";
-    }
-  }
-
-  return "/graph";
+async function getRedirectPath(_supabase: Awaited<ReturnType<typeof createClient>>): Promise<string> {
+  return "/courses";
 }

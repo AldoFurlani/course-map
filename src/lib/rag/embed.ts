@@ -28,6 +28,10 @@ export async function embedText(text: string): Promise<number[]> {
  */
 export async function getConceptEmbedding(concept: Concept): Promise<number[]> {
   if (concept.cached_embedding) {
+    // Supabase may return vector columns as strings — parse if needed
+    if (typeof concept.cached_embedding === "string") {
+      return JSON.parse(concept.cached_embedding);
+    }
     return concept.cached_embedding;
   }
 

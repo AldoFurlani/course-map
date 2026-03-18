@@ -1,19 +1,26 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { requireProfessor } from "@/lib/auth";
+import { requireAuth } from "@/lib/auth";
 import { wouldCreateCycle } from "@/lib/graph/cycle-detection";
 import type { CreateEdgeInput } from "@/lib/types/database";
 
 export async function POST(request: NextRequest) {
-  const auth = await requireProfessor();
+  const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
 
   const supabase = await createClient();
-  const body = (await request.json()) as CreateEdgeInput;
+  const body = (await request.json()) as CreateEdgeInput & { course_id: string };
 
   if (!body.source_id || !body.target_id) {
     return NextResponse.json(
       { error: "source_id and target_id are required" },
+      { status: 400 }
+    );
+  }
+
+  if (!body.course_id) {
+    return NextResponse.json(
+      { error: "course_id is required" },
       { status: 400 }
     );
   }
@@ -25,10 +32,11 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Fetch existing edges for cycle detection
+  // Fetch existing edges for cycle detection (scoped to course)
   const { data: existingEdges, error: fetchErr } = await supabase
     .from("concept_edges")
-    .select("*");
+    .select("*")
+    .eq("course_id", body.course_id);
 
   if (fetchErr) {
     return NextResponse.json({ error: fetchErr.message }, { status: 500 });
@@ -43,7 +51,11 @@ export async function POST(request: NextRequest) {
 
   const { data, error } = await supabase
     .from("concept_edges")
-    .insert({ source_id: body.source_id, target_id: body.target_id })
+    .insert({
+      course_id: body.course_id,
+      source_id: body.source_id,
+      target_id: body.target_id,
+    })
     .select()
     .single();
 
@@ -55,7 +67,7 @@ export async function POST(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
-  const auth = await requireProfessor();
+  const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
 
   const supabase = await createClient();

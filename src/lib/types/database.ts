@@ -1,5 +1,15 @@
+export interface Course {
+  id: string;
+  user_id: string;
+  name: string;
+  description: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Concept {
   id: string;
+  course_id: string;
   name: string;
   description: string;
   cached_embedding: number[] | null;
@@ -9,6 +19,7 @@ export interface Concept {
 
 export interface ConceptEdge {
   id: string;
+  course_id: string;
   source_id: string;
   target_id: string;
   created_at: string;
@@ -54,10 +65,11 @@ export interface GeneratedGraphPreview {
   edges: GeneratedEdge[];
 }
 
-// Phase 3: Course Materials
+// Course Materials
 
 export interface CourseMaterial {
   id: string;
+  course_id: string;
   title: string;
   file_name: string;
   file_type: "pdf" | "text" | "markdown";
@@ -69,6 +81,7 @@ export interface CourseMaterial {
 
 export interface CourseMaterialChunk {
   id: string;
+  course_id: string;
   material_id: string;
   chunk_text: string;
   chunk_index: number;
@@ -85,7 +98,7 @@ export interface MatchedChunk {
   similarity: number;
 }
 
-// Phase 4: Questions, Responses, Readiness
+// Questions, Responses, Readiness
 
 export type QuestionType = "multiple_choice" | "free_response";
 export type Difficulty = "easy" | "medium" | "hard";
@@ -97,6 +110,7 @@ export interface MCOption {
 
 export interface Question {
   id: string;
+  course_id: string;
   concept_id: string;
   question_type: QuestionType;
   difficulty: Difficulty;
@@ -115,10 +129,12 @@ export interface StudentResponse {
   student_id: string;
   question_id: string;
   concept_id: string;
+  course_id: string;
   answer_text: string;
   is_correct: boolean;
   ai_feedback: string;
   self_assessment: number | null;
+  favorited: boolean;
   created_at: string;
 }
 
@@ -126,6 +142,7 @@ export interface ReadinessScore {
   id: string;
   student_id: string;
   concept_id: string;
+  course_id: string;
   raw_score: number;
   quiz_ewma: number;
   self_assessment_avg: number;
