@@ -29,13 +29,13 @@ Self-directed study app for building interactive concept dependency graphs, uplo
 | PDF | `unpdf` (extraction) + `react-pdf` (viewer) |
 | Math | KaTeX for LaTeX rendering |
 
-## Getting Started
+## Running Locally
 
 ### Prerequisites
 
 - Node.js 18+
-- A [Supabase](https://supabase.com) project (remote — no Docker needed)
-- An [Anthropic API key](https://console.anthropic.com)
+- A [Supabase](https://supabase.com) project
+- An [Anthropic API key](https://console.anthropic.com) (for other providers, see [Architecture Notes](#architecture-notes))
 
 ### Setup
 
