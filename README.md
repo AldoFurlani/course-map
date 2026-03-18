@@ -2,7 +2,7 @@
 
 Self-directed study app for building interactive concept dependency graphs, uploading course materials, and practicing with AI-generated questions. Readiness scores track mastery per concept using a weighted blend of quiz performance and self-assessment.
 
-**[Try it live →](https://course-map-sigma.vercel.app/)**
+**[Try it live](https://course-map-sigma.vercel.app/)**
 
 ![Concept graph overview](docs/screenshots/graph-overview.png)
 
