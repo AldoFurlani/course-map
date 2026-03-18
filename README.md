@@ -35,7 +35,7 @@ Self-directed study app for building interactive concept dependency graphs, uplo
 
 - Node.js 18+
 - A [Supabase](https://supabase.com) project (remote — no Docker needed)
-- An [Anthropic API key](https://console.anthropic.com)
+- An [Anthropic API key](https://console.anthropic.com) (for other providers, see [Architecture Notes](#architecture-notes))
 
 ### Setup
 
