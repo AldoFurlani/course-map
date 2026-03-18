@@ -2,7 +2,7 @@
 
 Self-directed study app for building interactive concept dependency graphs, uploading course materials, and practicing with AI-generated questions. Readiness scores track mastery per concept using a weighted blend of quiz performance and self-assessment.
 
-**[Try it live →](https://course-map-sigma.vercel.app/)**
+**[Try it live](https://course-map-sigma.vercel.app/)**
 
 ![Concept graph overview](docs/screenshots/graph-overview.png)
 
@@ -29,12 +29,16 @@ Self-directed study app for building interactive concept dependency graphs, uplo
 | PDF | `unpdf` (extraction) + `react-pdf` (viewer) |
 | Math | KaTeX for LaTeX rendering |
 
-## Getting Started
+## Running Locally
 
 ### Prerequisites
 
 - Node.js 18+
+<<<<<<< HEAD
 - A [Supabase](https://supabase.com) project (remote — no Docker needed)
+=======
+- A [Supabase](https://supabase.com) project
+>>>>>>> 16fbf9aecc9e8c51bc5be4bd25329d7d746f59de
 - An [Anthropic API key](https://console.anthropic.com) (for other providers, see [Architecture Notes](#architecture-notes))
 
 ### Setup
