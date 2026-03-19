@@ -34,11 +34,7 @@ Self-directed study app for building interactive concept dependency graphs, uplo
 ### Prerequisites
 
 - Node.js 18+
-<<<<<<< HEAD
-- A [Supabase](https://supabase.com) project (remote — no Docker needed)
-=======
 - A [Supabase](https://supabase.com) project
->>>>>>> 16fbf9aecc9e8c51bc5be4bd25329d7d746f59de
 - An [Anthropic API key](https://console.anthropic.com) (for other providers, see [Architecture Notes](#architecture-notes))
 
 ### Setup

@@ -123,7 +123,15 @@ export async function generateQuestion(
     ? `\nThe following is the course material covering this concept. Only ask about topics that are substantively covered in this material — if something is only briefly mentioned or referenced in passing, do not make it the focus of a question. You may use your own examples and scenarios to test the concepts, rather than reusing the specific examples from the material.\n\n${ragContext}\n`
     : "";
 
-  const prompt = `You are an ML1 (Machine Learning 1) exam question generator. Generate a ${difficulty} ${typeLabel} question about "${typedConcept.name}".
+  // Fetch course name for prompt context
+  const { data: course } = await supabase
+    .from("courses")
+    .select("name")
+    .eq("id", typedConcept.course_id)
+    .single();
+  const courseName = course?.name ?? "this course";
+
+  const prompt = `You are an exam question generator for the course "${courseName}". Generate a ${difficulty} ${typeLabel} question about "${typedConcept.name}".
 ${contextSection}
 Concept description: ${typedConcept.description}
 ${avoidSection}

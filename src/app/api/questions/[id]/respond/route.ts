@@ -49,10 +49,18 @@ export async function POST(
     return NextResponse.json({ error: "Question not found" }, { status: 404 });
   }
 
+  // Fetch course name for prompt context
+  const { data: course } = await supabase
+    .from("courses")
+    .select("name")
+    .eq("id", question.course_id)
+    .single();
+
   try {
     const { isCorrect, feedback } = await evaluateAnswer(
       question as Question,
-      answer.trim()
+      answer.trim(),
+      course?.name ?? "this course"
     );
 
     // Insert student response (without self_assessment yet)

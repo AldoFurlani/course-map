@@ -14,7 +14,8 @@ const freeResponseSchema = z.object({
 
 export async function evaluateAnswer(
   question: Question,
-  studentAnswer: string
+  studentAnswer: string,
+  courseName: string = "this course"
 ): Promise<{ isCorrect: boolean; feedback: string }> {
   if (question.question_type === "multiple_choice") {
     const isCorrect =
@@ -24,7 +25,7 @@ export async function evaluateAnswer(
     const { output } = await generateText({
       model,
       output: Output.object({ schema: feedbackSchema }),
-      prompt: `You are grading a student's answer to an ML1 exam question.
+      prompt: `You are grading a student's answer to a "${courseName}" exam question.
 
 Question: ${question.question_text}
 Options: ${JSON.stringify(question.options)}
@@ -47,7 +48,7 @@ Use LaTeX notation with $...$ for inline math and $$...$$ for display math in yo
   const { output } = await generateText({
     model,
     output: Output.object({ schema: freeResponseSchema }),
-    prompt: `You are grading a student's answer to an ML1 exam question.
+    prompt: `You are grading a student's answer to a "${courseName}" exam question.
 
 Question: ${question.question_text}
 Correct answer: ${question.correct_answer}
