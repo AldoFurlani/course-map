@@ -31,15 +31,9 @@ export default async function CourseLayout({
     redirect("/courses");
   }
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("full_name")
-    .eq("id", user.id)
-    .single();
-
   return (
     <div className="min-h-screen pl-11">
-      <Navbar courseId={courseId} courseName={course.name} fullName={profile?.full_name ?? ""} />
+      <Navbar courseId={courseId} courseName={course.name} email={user.email ?? ""} />
       <main>{children}</main>
     </div>
   );

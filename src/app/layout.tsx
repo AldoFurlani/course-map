@@ -3,6 +3,7 @@ import { Geist, Geist_Mono, Source_Serif_4 } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
+import { Analytics } from "@vercel/analytics/react";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -23,7 +24,7 @@ const sourceSerif = Source_Serif_4({
 
 export const metadata: Metadata = {
   title: "Course Map",
-  description: "ML1 exam preparation tool with concept graphs and AI-generated practice questions",
+  description: "Self-directed study app with concept graphs and AI-generated practice questions",
 };
 
 export default function RootLayout({
@@ -46,6 +47,7 @@ export default function RootLayout({
             {children}
           </TooltipProvider>
           <Toaster />
+          <Analytics />
         </ThemeProvider>
       </body>
     </html>

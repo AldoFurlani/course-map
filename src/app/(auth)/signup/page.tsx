@@ -11,7 +11,7 @@ import { Map } from "lucide-react";
 export default function SignupPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [fullName, setFullName] = useState("");
+
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [isError, setIsError] = useState(false);
@@ -26,11 +26,6 @@ export default function SignupPage() {
     const { error } = await supabase.auth.signUp({
       email: email.trim(),
       password,
-      options: {
-        data: {
-          full_name: fullName,
-        },
-      },
     });
 
     if (error) {
@@ -101,17 +96,6 @@ export default function SignupPage() {
 
           <form onSubmit={handleSignup} className="space-y-5">
             <div className="space-y-2 auth-field-enter" style={{ animationDelay: "120ms" }}>
-              <Label htmlFor="fullName">Full Name</Label>
-              <Input
-                id="fullName"
-                type="text"
-                placeholder="Jane Doe"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                required
-              />
-            </div>
-            <div className="space-y-2 auth-field-enter" style={{ animationDelay: "180ms" }}>
               <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
@@ -122,7 +106,7 @@ export default function SignupPage() {
                 required
               />
             </div>
-            <div className="space-y-2 auth-field-enter" style={{ animationDelay: "240ms" }}>
+            <div className="space-y-2 auth-field-enter" style={{ animationDelay: "180ms" }}>
               <Label htmlFor="password">Password</Label>
               <Input
                 id="password"
@@ -134,7 +118,7 @@ export default function SignupPage() {
                 required
               />
             </div>
-            <div className="auth-field-enter" style={{ animationDelay: "300ms" }}>
+            <div className="auth-field-enter" style={{ animationDelay: "240ms" }}>
               <Button type="submit" className="w-full" disabled={loading}>
                 {loading ? "Creating account..." : "Create account"}
               </Button>
@@ -147,7 +131,7 @@ export default function SignupPage() {
             </p>
           )}
 
-          <div className="mt-8 pt-6 border-t border-border auth-field-enter" style={{ animationDelay: "360ms" }}>
+          <div className="mt-8 pt-6 border-t border-border auth-field-enter" style={{ animationDelay: "300ms" }}>
             <p className="text-center text-sm text-muted-foreground">
               Already have an account?{" "}
               <Link href="/login" className="text-primary font-medium hover:underline">

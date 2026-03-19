@@ -24,10 +24,10 @@ import {
 interface NavbarProps {
   courseId: string;
   courseName: string;
-  fullName: string;
+  email: string;
 }
 
-export default function Navbar({ courseId, courseName, fullName }: NavbarProps) {
+export default function Navbar({ courseId, courseName, email }: NavbarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const { theme, setTheme } = useTheme();
@@ -112,12 +112,12 @@ export default function Navbar({ courseId, courseName, fullName }: NavbarProps) 
           <TooltipTrigger
             className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground"
             onClick={handleLogout}
-            render={<button type="button" aria-label={`Log out (${fullName})`} />}
+            render={<button type="button" aria-label={`Log out (${email})`} />}
           >
             <LogOut className="size-[17px]" strokeWidth={1.5} />
           </TooltipTrigger>
           <TooltipContent side="right" sideOffset={12}>
-            Log out ({fullName})
+            Log out ({email})
           </TooltipContent>
         </Tooltip>
       </div>
